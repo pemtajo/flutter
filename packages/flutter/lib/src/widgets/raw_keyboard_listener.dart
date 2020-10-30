@@ -36,12 +36,12 @@ class RawKeyboardListener extends StatefulWidget {
   ///
   /// The [autofocus] argument must not be null.
   const RawKeyboardListener({
-    Key key,
-    @required this.focusNode,
+    Key? key,
+    required this.focusNode,
     this.autofocus = false,
     this.includeSemantics = true,
     this.onKey,
-    @required this.child,
+    required this.child,
   }) : assert(focusNode != null),
        assert(autofocus != null),
        assert(includeSemantics != null),
@@ -58,7 +58,7 @@ class RawKeyboardListener extends StatefulWidget {
   final bool includeSemantics;
 
   /// Called whenever this widget receives a raw keyboard event.
-  final ValueChanged<RawKeyEvent> onKey;
+  final ValueChanged<RawKeyEvent>? onKey;
 
   /// The widget below this widget in the tree.
   ///
@@ -123,7 +123,7 @@ class _RawKeyboardListenerState extends State<RawKeyboardListener> {
 
   void _handleRawKeyEvent(RawKeyEvent event) {
     if (widget.onKey != null)
-      widget.onKey(event);
+      widget.onKey!(event);
   }
 
   @override

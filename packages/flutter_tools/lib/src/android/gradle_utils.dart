@@ -109,9 +109,11 @@ class GradleUtils {
       },
     );
     // Add the `gradle-wrapper.properties` file if it doesn't exist.
-    final File propertiesFile = directory.childFile(
-        globals.fs.path.join('gradle', 'wrapper', 'gradle-wrapper.properties'));
+    final Directory propertiesDirectory = directory.childDirectory(
+        globals.fs.path.join('gradle', 'wrapper'));
+    final File propertiesFile = propertiesDirectory.childFile('gradle-wrapper.properties');
     if (!propertiesFile.existsSync()) {
+      propertiesDirectory.createSync(recursive: true);
       final String gradleVersion = getGradleVersionForAndroidPlugin(directory);
       propertiesFile.writeAsStringSync('''
 distributionBase=GRADLE_USER_HOME
@@ -304,6 +306,6 @@ void exitWithNoSdkMessage() {
   BuildEvent('unsupported-project', eventError: 'android-sdk-not-found', flutterUsage: globals.flutterUsage).send();
   throwToolExit(
     '$warningMark No Android SDK found. '
-    'Try setting the ANDROID_HOME environment variable.'
+    'Try setting the ANDROID_SDK_ROOT environment variable.'
   );
 }

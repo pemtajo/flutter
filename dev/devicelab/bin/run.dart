@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,16 +9,18 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:flutter_devicelab/framework/ab.dart';
+import 'package:flutter_devicelab/framework/cocoon.dart';
 import 'package:flutter_devicelab/framework/manifest.dart';
 import 'package:flutter_devicelab/framework/runner.dart';
+import 'package:flutter_devicelab/framework/task_result.dart';
 import 'package:flutter_devicelab/framework/utils.dart';
 
 ArgResults args;
 
 List<String> _taskNames = <String>[];
 
-/// Suppresses standard output, prints only standard error output.
-bool silent;
+/// The device-id to run test on.
+String deviceId;
 
 /// The build of the local engine to use.
 ///
@@ -31,6 +32,14 @@ String localEngineSrcPath;
 
 /// Whether to exit on first test failure.
 bool exitOnFirstTestFailure;
+
+/// File containing a service account token.
+///
+/// If passed, the test run results will be uploaded to Flutter infrastructure.
+String serviceAccountTokenFile;
+
+/// Suppresses standard output, prints only standard error output.
+bool silent;
 
 /// Runs tasks.
 ///
@@ -71,10 +80,12 @@ Future<void> main(List<String> rawArgs) async {
     return;
   }
 
-  silent = args['silent'] as bool;
+  deviceId = args['device-id'] as String;
   localEngine = args['local-engine'] as String;
   localEngineSrcPath = args['local-engine-src-path'] as String;
   exitOnFirstTestFailure = args['exit'] as bool;
+  serviceAccountTokenFile = args['service-account-token-file'] as String;
+  silent = args['silent'] as bool;
 
   if (args.wasParsed('ab')) {
     await _runABTest();
@@ -86,18 +97,24 @@ Future<void> main(List<String> rawArgs) async {
 Future<void> _runTasks() async {
   for (final String taskName in _taskNames) {
     section('Running task "$taskName"');
-    final Map<String, dynamic> result = await runTask(
+    final TaskResult result = await runTask(
       taskName,
       silent: silent,
       localEngine: localEngine,
       localEngineSrcPath: localEngineSrcPath,
+      deviceId: deviceId,
     );
 
     print('Task result:');
     print(const JsonEncoder.withIndent('  ').convert(result));
     section('Finished task "$taskName"');
 
-    if (!(result['success'] as bool)) {
+    if (serviceAccountTokenFile != null) {
+      final Cocoon cocoon = Cocoon(serviceAccountTokenPath: serviceAccountTokenFile);
+      await cocoon.sendTaskResult(taskName: taskName, result: result);
+    }
+
+    if (!result.succeeded) {
       exitCode = 1;
       if (exitOnFirstTestFailure) {
         return;
@@ -130,15 +147,16 @@ Future<void> _runABTest() async {
     section('Run #$i');
 
     print('Running with the default engine (A)');
-    final Map<String, dynamic> defaultEngineResult = await runTask(
+    final TaskResult defaultEngineResult = await runTask(
       taskName,
       silent: silent,
+      deviceId: deviceId,
     );
 
     print('Default engine result:');
     print(const JsonEncoder.withIndent('  ').convert(defaultEngineResult));
 
-    if (!(defaultEngineResult['success'] as bool)) {
+    if (!defaultEngineResult.succeeded) {
       stderr.writeln('Task failed on the default engine.');
       exit(1);
     }
@@ -146,17 +164,18 @@ Future<void> _runABTest() async {
     abTest.addAResult(defaultEngineResult);
 
     print('Running with the local engine (B)');
-    final Map<String, dynamic> localEngineResult = await runTask(
+    final TaskResult localEngineResult = await runTask(
       taskName,
       silent: silent,
       localEngine: localEngine,
       localEngineSrcPath: localEngineSrcPath,
+      deviceId: deviceId,
     );
 
     print('Task localEngineResult:');
     print(const JsonEncoder.withIndent('  ').convert(localEngineResult));
 
-    if (!(localEngineResult['success'] as bool)) {
+    if (!localEngineResult.succeeded) {
       stderr.writeln('Task failed on the local engine.');
       exit(1);
     }
@@ -229,8 +248,11 @@ final ArgParser _argParser = ArgParser()
     abbr: 't',
     splitCommas: true,
     help: 'Either:\n'
-        ' - the name of a task defined in manifest.yaml. Example: complex_layout__start_up.\n'
-        ' - the path to a Dart file corresponding to a task, which resides in bin/tasks. Example: bin/tasks/complex_layout__start_up.dart.\n'
+        ' - the name of a task defined in manifest.yaml.\n'
+        '   Example: complex_layout__start_up.\n'
+        ' - the path to a Dart file corresponding to a task,\n'
+        '   which resides in bin/tasks.\n'
+        '   Example: bin/tasks/complex_layout__start_up.dart.\n'
         '\n'
         'This option may be repeated to specify multiple tasks.',
     callback: (List<String> value) {
@@ -249,6 +271,15 @@ final ArgParser _argParser = ArgParser()
         }
       }
     },
+  )
+  ..addOption(
+    'device-id',
+    abbr: 'd',
+    help: 'Target device id (prefixes are allowed, names are not supported).\n'
+          'The option will be ignored if the test target does not run on a\n'
+          'mobile device. This still respects the device operating system\n'
+          'settings in the test case, and will results in error if no device\n'
+          'with given ID/ID prefix is found.',
   )
   ..addOption(
     'ab',
@@ -314,6 +345,10 @@ final ArgParser _argParser = ArgParser()
           'test with a `required_agent_capabilities` value of "mac/android"\n'
           'on a windows host). Each test publishes its '
           '`required_agent_capabilities`\nin the `manifest.yaml` file.',
+  )
+  ..addOption(
+    'service-account-token-file',
+    help: '[Flutter infrastructure] Authentication for uploading results.',
   )
   ..addOption(
     'stage',

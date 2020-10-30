@@ -19,9 +19,9 @@ class WillPopScope extends StatefulWidget {
   ///
   /// The [child] argument must not be null.
   const WillPopScope({
-    Key key,
-    @required this.child,
-    @required this.onWillPop,
+    Key? key,
+    required this.child,
+    required this.onWillPop,
   }) : assert(child != null),
        super(key: key);
 
@@ -34,23 +34,23 @@ class WillPopScope extends StatefulWidget {
   ///
   /// If the callback returns a Future that resolves to false, the enclosing
   /// route will not be popped.
-  final WillPopCallback onWillPop;
+  final WillPopCallback? onWillPop;
 
   @override
   _WillPopScopeState createState() => _WillPopScopeState();
 }
 
 class _WillPopScopeState extends State<WillPopScope> {
-  ModalRoute<dynamic> _route;
+  ModalRoute<dynamic>? _route;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.onWillPop != null)
-      _route?.removeScopedWillPopCallback(widget.onWillPop);
+      _route?.removeScopedWillPopCallback(widget.onWillPop!);
     _route = ModalRoute.of(context);
     if (widget.onWillPop != null)
-      _route?.addScopedWillPopCallback(widget.onWillPop);
+      _route?.addScopedWillPopCallback(widget.onWillPop!);
   }
 
   @override
@@ -59,16 +59,16 @@ class _WillPopScopeState extends State<WillPopScope> {
     assert(_route == ModalRoute.of(context));
     if (widget.onWillPop != oldWidget.onWillPop && _route != null) {
       if (oldWidget.onWillPop != null)
-        _route.removeScopedWillPopCallback(oldWidget.onWillPop);
+        _route!.removeScopedWillPopCallback(oldWidget.onWillPop!);
       if (widget.onWillPop != null)
-        _route.addScopedWillPopCallback(widget.onWillPop);
+        _route!.addScopedWillPopCallback(widget.onWillPop!);
     }
   }
 
   @override
   void dispose() {
     if (widget.onWillPop != null)
-      _route?.removeScopedWillPopCallback(widget.onWillPop);
+      _route?.removeScopedWillPopCallback(widget.onWillPop!);
     super.dispose();
   }
 

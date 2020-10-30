@@ -34,7 +34,11 @@ class UserMessages {
 
   // Messages used in NoIdeValidator
   String get noIdeStatusInfo => 'No supported IDEs installed';
-  String get noIdeInstallationInfo => 'IntelliJ - https://www.jetbrains.com/idea/';
+  List<String> get noIdeInstallationInfo => <String>[
+    'IntelliJ - https://www.jetbrains.com/idea/',
+    'Android Studio - https://developer.android.com/studio/',
+    'VS Code - https://code.visualstudio.com/',
+  ];
 
   // Messages used in IntellijValidator
   String intellijStatusInfo(String version) => 'version $version';
@@ -69,13 +73,13 @@ class UserMessages {
   String androidBadSdkDir(String envKey, String homeDir) =>
       '$envKey = $homeDir\n'
       'but Android SDK not found at this location.';
-  String androidMissingSdkInstructions(String envKey, Platform platform) =>
+  String androidMissingSdkInstructions(Platform platform) =>
       'Unable to locate Android SDK.\n'
       'Install Android Studio from: https://developer.android.com/studio/index.html\n'
       'On first launch it will assist you in installing the Android SDK components.\n'
       '(or visit ${_androidSdkInstallUrl(platform)} for detailed instructions).\n'
-      'If the Android SDK has been installed to a custom location, set $envKey to that location.\n'
-      'You may also want to add it to your PATH environment variable.\n';
+      'If the Android SDK has been installed to a custom location, please use\n'
+      '`flutter config --android-sdk` to update to that location.\n';
   String androidSdkLocation(String directory) => 'Android SDK at $directory';
   String androidSdkPlatformToolsVersion(String platform, String tools) =>
       'Platform $platform, build-tools $tools';
@@ -96,9 +100,8 @@ class UserMessages {
   String get androidLicensesNone => 'Android licenses not accepted.  To resolve this, run: flutter doctor --android-licenses';
   String androidLicensesUnknown(Platform platform) =>
       'Android license status unknown.\n'
-      'Try re-installing or updating your Android SDK Manager.\n'
-      'See https://developer.android.com/studio/#downloads or visit '
-      '${_androidSdkInstallUrl(platform)} for detailed instructions.';
+      'Run `flutter doctor --android-licenses` to accept the SDK licenses.\n'
+      'See ${_androidSdkInstallUrl(platform)} for more details.';
   String androidSdkManagerOutdated(String managerPath) =>
       'A newer version of the Android SDK is required. To update, run:\n'
       '$managerPath --update\n';
@@ -114,9 +117,7 @@ class UserMessages {
       'visit ${_androidSdkInstallUrl(platform)} for detailed instructions.';
   String androidSdkBuildToolsOutdated(String managerPath, int sdkMinVersion, String buildToolsMinVersion, Platform platform) =>
       'Flutter requires Android SDK $sdkMinVersion and the Android BuildTools $buildToolsMinVersion\n'
-      'To update using sdkmanager, run:\n'
-      '  "$managerPath" "platforms;android-$sdkMinVersion" "build-tools;$buildToolsMinVersion"\n'
-      'or visit ${_androidSdkInstallUrl(platform)} for detailed instructions.';
+      'To update the Android SDK visit ${_androidSdkInstallUrl(platform)} for detailed instructions.';
 
   // Messages used in AndroidStudioValidator
   String androidStudioVersion(String version) => 'version $version';
@@ -138,8 +139,8 @@ class UserMessages {
 
   // Messages used in XcodeValidator
   String xcodeLocation(String location) => 'Xcode at $location';
-  String xcodeOutdated(int versionMajor, int versionMinor) =>
-      'Flutter requires a minimum Xcode version of $versionMajor.$versionMinor.0.\n'
+  String xcodeOutdated(int versionMajor, int versionMinor, int versionPatch) =>
+      'Flutter requires a minimum Xcode version of $versionMajor.$versionMinor.$versionPatch.\n'
       'Download the latest version or update via the Mac App Store.';
   String get xcodeEula => "Xcode end user license agreement not signed; open Xcode or run the command 'sudo xcodebuild -license'.";
   String get xcodeMissingSimct =>
@@ -168,23 +169,19 @@ class UserMessages {
   String cocoaPodsMissing(String consequence, String installInstructions) =>
       'CocoaPods not installed.\n'
       '$consequence\n'
-      'To install:\n'
-      '$installInstructions';
+      'To install $installInstructions';
   String cocoaPodsUnknownVersion(String consequence, String upgradeInstructions) =>
       'Unknown CocoaPods version installed.\n'
       '$consequence\n'
-      'To upgrade:\n'
-      '$upgradeInstructions';
+      'To upgrade $upgradeInstructions';
   String cocoaPodsOutdated(String currentVersion, String recVersion, String consequence, String upgradeInstructions) =>
       'CocoaPods $currentVersion out of date ($recVersion is recommended).\n'
       '$consequence\n'
-      'To upgrade:\n'
-      '$upgradeInstructions';
+      'To upgrade $upgradeInstructions';
   String cocoaPodsBrokenInstall(String consequence, String reinstallInstructions) =>
       'CocoaPods installed but not working.\n'
       '$consequence\n'
-      'To re-install CocoaPods, run:\n'
-      '$reinstallInstructions';
+      'To re-install $reinstallInstructions';
 
   // Messages used in VsCodeValidator
   String vsCodeVersion(String version) => 'version $version';
@@ -231,6 +228,15 @@ class UserMessages {
       'It is likely available from your distribution (e.g.: apt install ninja-build), or '
       'can be downloaded from https://github.com/ninja-build/ninja/releases';
   String ninjaTooOld(String minimumVersion) => 'ninja $minimumVersion or later is required.';
+  String pkgConfigVersion(String version) => 'pkg-config version $version';
+  String get pkgConfigMissing => 'pgk-config is required for Linux development.\n'
+      'It is likely available from your distribution (e.g.: apt install pkg-config), or '
+      'can be downloaded from https://www.freedesktop.org/wiki/Software/pkg-config/';
+  String pkgConfigTooOld(String minimumVersion) => 'pkg-config $minimumVersion or later is required.';
+  String get gtkLibrariesMissing => 'GTK 3.0 development libraries are required for Linux development.\n'
+      'They are likely available from your distribution (e.g.: apt install libgtk-3-dev)';
+  String get blkidLibraryMissing => 'The blkid development library is required for Linux development.\n'
+      'It is likely available from your distribution (e.g.: apt install libblkid-dev)';
 
   // Messages used in FlutterCommand
   String flutterElapsedTime(String name, String elapsedTime) => '"flutter $name" took $elapsedTime.';
@@ -246,6 +252,9 @@ class UserMessages {
   String get flutterFoundButUnsupportedDevices => 'The following devices were found, but are not supported by this project:';
   String flutterFoundSpecifiedDevices(int count, String deviceId) =>
       'Found $count devices with name or id matching $deviceId:';
+  String get flutterMultipleDevicesFound => 'Multiple devices found:';
+  String flutterChooseDevice(int option, String name, String deviceId) => '[$option]: $name ($deviceId)';
+  String get flutterChooseOne => 'Please choose one (To quit, press "q/Q")';
   String get flutterSpecifyDeviceWithAllOption =>
       'More than one device connected; please specify a device with '
       "the '-d <deviceId>' flag, or use '-d all' to act on all devices.";
@@ -255,8 +264,7 @@ class UserMessages {
   String get flutterNoConnectedDevices => 'No connected devices.';
   String get flutterNoPubspec =>
       'Error: No pubspec.yaml file found.\n'
-      'This command should be run from the root of your Flutter project.\n'
-      'Do not run this command from the root of your git clone of Flutter.';
+      'This command should be run from the root of your Flutter project.';
   String flutterTargetFileMissing(String path) => 'Target file "$path" not found.';
   String get flutterBasePatchFlagsExclusive => 'Error: Only one of --baseline, --patch is allowed.';
   String get flutterBaselineRequiresTraceFile => 'Error: --baseline requires --compilation-trace-file to be specified.';

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
+import 'package:convert/convert.dart';
+import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:pool/pool.dart';
 
@@ -14,10 +14,10 @@ import 'base/logger.dart';
 import 'build_info.dart';
 import 'build_system/build_system.dart';
 import 'build_system/depfile.dart';
-import 'build_system/targets/dart.dart';
+import 'build_system/targets/common.dart';
 import 'build_system/targets/icon_tree_shaker.dart';
 import 'cache.dart';
-import 'dart/package_map.dart';
+import 'convert.dart';
 import 'devfs.dart';
 import 'globals.dart' as globals;
 import 'project.dart';
@@ -27,24 +27,50 @@ const String defaultAssetBasePath = '.';
 const String defaultManifestPath = 'pubspec.yaml';
 String get defaultDepfilePath => globals.fs.path.join(getBuildDirectory(), 'snapshot_blob.bin.d');
 
-String getDefaultApplicationKernelPath({ @required bool trackWidgetCreation }) {
+String getDefaultApplicationKernelPath({
+  @required bool trackWidgetCreation,
+  @required NullSafetyMode nullSafetyMode,
+}) {
   return getKernelPathForTransformerOptions(
     globals.fs.path.join(getBuildDirectory(), 'app.dill'),
     trackWidgetCreation: trackWidgetCreation,
+    nullSafetyMode: nullSafetyMode,
   );
 }
 
-String getDefaultCachedKernelPath({ @required bool trackWidgetCreation }) {
+String getDefaultCachedKernelPath({
+  @required bool trackWidgetCreation,
+  @required List<String> dartDefines,
+  @required List<String> extraFrontEndOptions,
+  @required NullSafetyMode nullSafetyMode,
+}) {
+  final StringBuffer buffer = StringBuffer();
+  buffer.writeAll(dartDefines);
+  buffer.writeAll(extraFrontEndOptions ?? <String>[]);
+  String buildPrefix = '';
+  if (buffer.isNotEmpty) {
+    final String output = buffer.toString();
+    final Digest digest = md5.convert(utf8.encode(output));
+    buildPrefix = '${hex.encode(digest.bytes)}.';
+  }
   return getKernelPathForTransformerOptions(
-    globals.fs.path.join(getBuildDirectory(), 'cache.dill'),
+    globals.fs.path.join(getBuildDirectory(), '${buildPrefix}cache.dill'),
     trackWidgetCreation: trackWidgetCreation,
+    nullSafetyMode: nullSafetyMode,
   );
 }
 
 String getKernelPathForTransformerOptions(
   String path, {
   @required bool trackWidgetCreation,
+  @required NullSafetyMode nullSafetyMode,
 }) {
+  // Temporary work around until --initialize-from-dill accounts for sound mode.
+  // The tool does not know the compilation mode if [NullSafetyMode.autodetect] is
+  // selected.
+  if (nullSafetyMode == NullSafetyMode.sound) {
+    path += '.sound';
+  }
   if (trackWidgetCreation) {
     path += '.track.dill';
   }
@@ -81,7 +107,7 @@ class BundleBuilder {
     mainPath ??= defaultMainPath;
     depfilePath ??= defaultDepfilePath;
     assetDirPath ??= getAssetBuildDirectory();
-    packagesPath ??= globals.fs.path.absolute(globalPackagesPath);
+    packagesPath ??= globals.fs.path.absolute('.packages');
     final FlutterProject flutterProject = FlutterProject.current();
     await buildWithAssemble(
       buildMode: buildInfo.mode,
@@ -178,12 +204,12 @@ Future<void> buildWithAssemble({
 Future<AssetBundle> buildAssets({
   String manifestPath,
   String assetDirPath,
-  String packagesPath,
+  @required String packagesPath,
   bool includeDefaultFonts = true,
   bool reportLicensedPackages = false,
 }) async {
   assetDirPath ??= getAssetBuildDirectory();
-  packagesPath ??= globals.fs.path.absolute(globalPackagesPath);
+  packagesPath ??= globals.fs.path.absolute(packagesPath);
 
   // Build the asset bundle.
   final AssetBundle assetBundle = AssetBundleFactory.instance.createBundle();

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
+import 'package:meta/meta.dart';
 
 import '../android/android_builder.dart';
 import '../android/gradle_utils.dart';
@@ -17,7 +17,7 @@ import '../runner/flutter_command.dart' show FlutterCommandResult;
 import 'build.dart';
 
 class BuildAarCommand extends BuildSubCommand {
-  BuildAarCommand() {
+  BuildAarCommand({ @required bool verboseHelp }) {
     argParser
       ..addFlag(
         'debug',
@@ -41,7 +41,9 @@ class BuildAarCommand extends BuildSubCommand {
     addSplitDebugInfoOption();
     addDartObfuscationOption();
     usesTrackWidgetCreation(verboseHelp: false);
-    addNullSafetyModeOptions();
+    addNullSafetyModeOptions(hide: !verboseHelp);
+    addEnableExperimentation(hide: !verboseHelp);
+    addAndroidSpecificBuildOptions(hide: !verboseHelp);
     argParser
       ..addMultiOption(
         'target-platform',

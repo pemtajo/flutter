@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:file/memory.dart';
 import 'package:flutter_tools/src/base/common.dart';
+import 'package:flutter_tools/src/base/dds.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/io.dart';
 import 'package:flutter_tools/src/base/logger.dart';
@@ -46,6 +47,7 @@ final vm_service.Isolate fakeUnpausedIsolate = vm_service.Isolate(
   pauseOnExit: false,
   runnable: true,
   startTime: 0,
+  isSystemIsolate: false,
 );
 
 void main() {
@@ -71,6 +73,7 @@ void main() {
 
       FakeDeviceLogReader mockLogReader;
       MockPortForwarder portForwarder;
+      MockDartDevelopmentService mockDds;
       MockAndroidDevice device;
       MockHttpClient httpClient;
 
@@ -78,6 +81,7 @@ void main() {
         mockLogReader = FakeDeviceLogReader();
         portForwarder = MockPortForwarder();
         device = MockAndroidDevice();
+        mockDds = MockDartDevelopmentService();
         when(device.portForwarder)
           .thenReturn(portForwarder);
         when(portForwarder.forward(devicePort, hostPort: anyNamed('hostPort')))
@@ -85,8 +89,12 @@ void main() {
         when(portForwarder.forwardedPorts)
           .thenReturn(<ForwardedPort>[ForwardedPort(hostPort, devicePort)]);
         when(portForwarder.unforward(any))
-          .thenAnswer((_) async => null);
-
+          .thenAnswer((_) async {});
+        when(device.dds).thenReturn(mockDds);
+        final Completer<void> noopCompleter = Completer<void>();
+        when(mockDds.startDartDevelopmentService(any, any, false, any)).thenReturn(null);
+        when(mockDds.uri).thenReturn(Uri.parse('http://localhost:8181'));
+        when(mockDds.done).thenAnswer((_) => noopCompleter.future);
         final HttpClientRequest httpClientRequest = MockHttpClientRequest();
         httpClient = MockHttpClient();
         when(httpClient.putUrl(any))
@@ -286,17 +294,22 @@ void main() {
       const int hostPort = 42;
       final FakeDeviceLogReader mockLogReader = FakeDeviceLogReader();
       final MockPortForwarder portForwarder = MockPortForwarder();
+      final MockDartDevelopmentService mockDds = MockDartDevelopmentService();
       final MockAndroidDevice device = MockAndroidDevice();
       final MockHotRunner mockHotRunner = MockHotRunner();
       final MockHotRunnerFactory mockHotRunnerFactory = MockHotRunnerFactory();
       when(device.portForwarder)
         .thenReturn(portForwarder);
+      when(device.dds)
+        .thenReturn(mockDds);
+      final Completer<void> noopCompleter = Completer<void>();
+      when(mockDds.done).thenAnswer((_) => noopCompleter.future);
       when(portForwarder.forward(devicePort, hostPort: anyNamed('hostPort')))
         .thenAnswer((_) async => hostPort);
       when(portForwarder.forwardedPorts)
         .thenReturn(<ForwardedPort>[ForwardedPort(hostPort, devicePort)]);
       when(portForwarder.unforward(any))
-        .thenAnswer((_) async => null);
+        .thenAnswer((_) async {});
       when(mockHotRunner.attach(appStartedCompleter: anyNamed('appStartedCompleter')))
         .thenAnswer((_) async => 0);
       when(mockHotRunnerFactory.build(
@@ -309,6 +322,8 @@ void main() {
       )).thenReturn(mockHotRunner);
       when(mockHotRunner.exited).thenReturn(false);
       when(mockHotRunner.isWaitingForObservatory).thenReturn(false);
+      when(mockDds.startDartDevelopmentService(any, any, false, any)).thenReturn(null);
+      when(mockDds.uri).thenReturn(Uri.parse('http://localhost:8181'));
 
       testDeviceManager.addDevice(device);
       when(device.getLogReader(includePastLogs: anyNamed('includePastLogs')))
@@ -326,16 +341,31 @@ void main() {
       globals.fs.file(globals.fs.path.join('lib', 'main.dart')).deleteSync();
 
       final AttachCommand command = AttachCommand(hotRunnerFactory: mockHotRunnerFactory);
-      await createTestCommandRunner(command).run(<String>['attach', '-t', foo.path, '-v']);
+      await createTestCommandRunner(command).run(<String>[
+        'attach',
+        '-t',
+        foo.path,
+        '-v',
+        '--device-user',
+        '10',
+        '--device-timeout',
+        '15',
+      ]);
+      final VerificationResult verificationResult = verify(
+        mockHotRunnerFactory.build(
+          captureAny,
+          target: foo.path,
+          debuggingOptions: anyNamed('debuggingOptions'),
+          packagesFilePath: anyNamed('packagesFilePath'),
+          flutterProject: anyNamed('flutterProject'),
+          ipv6: false,
+        ),
+      )..called(1);
 
-      verify(mockHotRunnerFactory.build(
-        any,
-        target: foo.path,
-        debuggingOptions: anyNamed('debuggingOptions'),
-        packagesFilePath: anyNamed('packagesFilePath'),
-        flutterProject: anyNamed('flutterProject'),
-        ipv6: false,
-      )).called(1);
+      final List<FlutterDevice> flutterDevices = verificationResult.captured.first as List<FlutterDevice>;
+      expect(flutterDevices, hasLength(1));
+      final FlutterDevice flutterDevice = flutterDevices.first;
+      expect(flutterDevice.userIdentifier, '10');
     }, overrides: <Type, Generator>{
       FileSystem: () => testFileSystem,
       ProcessManager: () => FakeProcessManager.any(),
@@ -346,10 +376,16 @@ void main() {
       const int hostPort = 42;
       final FakeDeviceLogReader mockLogReader = FakeDeviceLogReader();
       final MockPortForwarder portForwarder = MockPortForwarder();
+      final MockDartDevelopmentService mockDds = MockDartDevelopmentService();
       final MockIOSDevice device = MockIOSDevice();
       final MockHotRunner mockHotRunner = MockHotRunner();
       final MockHotRunnerFactory mockHotRunnerFactory = MockHotRunnerFactory();
-      when(device.portForwarder).thenReturn(portForwarder);
+      when(device.portForwarder)
+        .thenReturn(portForwarder);
+      when(device.dds)
+        .thenReturn(mockDds);
+      final Completer<void> noopCompleter = Completer<void>();
+      when(mockDds.done).thenAnswer((_) => noopCompleter.future);
       when(device.getLogReader(includePastLogs: anyNamed('includePastLogs')))
         .thenAnswer((_) => mockLogReader);
       when(portForwarder.forward(devicePort, hostPort: anyNamed('hostPort')))
@@ -357,7 +393,7 @@ void main() {
       when(portForwarder.forwardedPorts)
         .thenReturn(<ForwardedPort>[ForwardedPort(hostPort, devicePort)]);
       when(portForwarder.unforward(any))
-        .thenAnswer((_) async => null);
+        .thenAnswer((_) async {});
       when(mockHotRunner.attach(appStartedCompleter: anyNamed('appStartedCompleter')))
         .thenAnswer((_) async => 0);
       when(mockHotRunnerFactory.build(
@@ -370,6 +406,8 @@ void main() {
       )).thenReturn(mockHotRunner);
       when(mockHotRunner.exited).thenReturn(false);
       when(mockHotRunner.isWaitingForObservatory).thenReturn(false);
+      when(mockDds.startDartDevelopmentService(any, any, false, any)).thenReturn(null);
+      when(mockDds.uri).thenReturn(Uri.parse('http://localhost:8181'));
 
       testDeviceManager.addDevice(device);
 
@@ -402,6 +440,7 @@ void main() {
 
       setUp(() {
         portForwarder = MockPortForwarder();
+        final MockDartDevelopmentService mockDds = MockDartDevelopmentService();
         device = MockAndroidDevice();
 
         when(device.portForwarder)
@@ -411,7 +450,14 @@ void main() {
         when(portForwarder.forwardedPorts)
           .thenReturn(<ForwardedPort>[ForwardedPort(hostPort, devicePort)]);
         when(portForwarder.unforward(any))
-          .thenAnswer((_) async => null);
+          .thenAnswer((_) async {});
+        when(device.dds)
+          .thenReturn(mockDds);
+        when(mockDds.startDartDevelopmentService(any, any, any, any))
+          .thenReturn(null);
+        when(mockDds.uri).thenReturn(Uri.parse('http://localhost:8181'));
+        final Completer<void> noopCompleter = Completer<void>();
+        when(mockDds.done).thenAnswer((_) => noopCompleter.future);
       });
 
       testUsingContext('succeeds in ipv4 mode', () async {
@@ -538,6 +584,19 @@ void main() {
       ProcessManager: () => FakeProcessManager.any(),
     });
 
+    testUsingContext('fails when targeted device is not Android with --device-user', () async {
+      final MockIOSDevice device = MockIOSDevice();
+      testDeviceManager.addDevice(device);
+      expect(createTestCommandRunner(AttachCommand()).run(<String>[
+        'attach',
+        '--device-user',
+        '10',
+      ]), throwsToolExit(message: '--device-user is only supported for Android'));
+    }, overrides: <Type, Generator>{
+      FileSystem: () => testFileSystem,
+      ProcessManager: () => FakeProcessManager.any(),
+    });
+
     testUsingContext('exits when multiple devices connected', () async {
       Device aDeviceWithId(String id) {
         final MockAndroidDevice device = MockAndroidDevice();
@@ -545,6 +604,9 @@ void main() {
         when(device.id).thenReturn(id);
         when(device.isLocalEmulator).thenAnswer((_) async => false);
         when(device.sdkNameAndVersion).thenAnswer((_) async => 'Android 46');
+        when(device.targetPlatformDisplayName)
+            .thenAnswer((_) async => 'android');
+
         return device;
       }
 
@@ -616,8 +678,6 @@ class StreamLogger extends Logger {
   }) {
     _log('[progress] $message');
     return SilentStatus(
-      timeout: timeout,
-      timeoutConfiguration: timeoutConfiguration,
       stopwatch: Stopwatch(),
     )..start();
   }
@@ -677,8 +737,8 @@ VMServiceConnector getFakeVmServiceFactory({
     ReloadSources reloadSources,
     Restart restart,
     CompileExpression compileExpression,
-    ReloadMethod reloadMethod,
     GetSkSLMethod getSkSLMethod,
+    PrintStructuredErrorLogMethod printStructuredErrorLogMethod,
     CompressionOptions compression,
     Device device,
   }) async {
@@ -755,7 +815,6 @@ class TestHotRunnerFactory extends HotRunnerFactory {
       applicationBinary: applicationBinary,
       hostIsIde: hostIsIde,
       projectRootPath: projectRootPath,
-      packagesFilePath: packagesFilePath,
       dillOutputPath: dillOutputPath,
       stayResident: stayResident,
       ipv6: ipv6,
@@ -769,8 +828,7 @@ class TestHotRunnerFactory extends HotRunnerFactory {
   }
 }
 
-class MockProcessManager extends Mock implements ProcessManager {}
-class MockProcess extends Mock implements Process {}
+class MockDartDevelopmentService extends Mock implements DartDevelopmentService {}
 class MockHttpClientRequest extends Mock implements HttpClientRequest {}
 class MockHttpClientResponse extends Mock implements HttpClientResponse {}
 class MockHttpHeaders extends Mock implements HttpHeaders {}

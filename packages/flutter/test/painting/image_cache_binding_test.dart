@@ -11,7 +11,6 @@ import 'package:flutter/services.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 
-
 void main() {
   test('PaintingBinding with memory pressure before initInstances', () {
     // Observed in devicelab: the device sends a memory pressure event to us
@@ -23,7 +22,7 @@ void main() {
     expect(binding.imageCache, null);
     binding.initInstances();
     expect(binding.imageCache, isNotNull);
-    expect(binding.imageCache.currentSize, 0);
+    expect(binding.imageCache!.currentSize, 0);
   });
 }
 
@@ -54,19 +53,19 @@ class TestBindingBase implements BindingBase {
   }
 
   @override
-  void registerBoolServiceExtension({String name, AsyncValueGetter<bool> getter, AsyncValueSetter<bool> setter}) {}
+  void registerBoolServiceExtension({required String name, required AsyncValueGetter<bool> getter, required AsyncValueSetter<bool> setter}) {}
 
   @override
-  void registerNumericServiceExtension({String name, AsyncValueGetter<double> getter, AsyncValueSetter<double> setter}) {}
+  void registerNumericServiceExtension({required String name, required AsyncValueGetter<double> getter, required AsyncValueSetter<double> setter}) {}
 
   @override
-  void registerServiceExtension({String name, ServiceExtensionCallback callback}) {}
+  void registerServiceExtension({required String name, required ServiceExtensionCallback callback}) {}
 
   @override
-  void registerSignalServiceExtension({String name, AsyncCallback callback}) {}
+  void registerSignalServiceExtension({required String name, required AsyncCallback callback}) {}
 
   @override
-  void registerStringServiceExtension({String name, AsyncValueGetter<String> getter, AsyncValueSetter<String> setter}) {}
+  void registerStringServiceExtension({required String name, required AsyncValueGetter<String> getter, required AsyncValueSetter<String> setter}) {}
 
   @override
   void unlocked() {}

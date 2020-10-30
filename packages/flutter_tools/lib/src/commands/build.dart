@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
-import '../bundle.dart';
 import '../commands/build_linux.dart';
 import '../commands/build_macos.dart';
 import '../commands/build_windows.dart';
@@ -22,15 +19,16 @@ import 'build_web.dart';
 
 class BuildCommand extends FlutterCommand {
   BuildCommand({ bool verboseHelp = false }) {
-    addSubcommand(BuildAarCommand());
+    addSubcommand(BuildAarCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildApkCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildAppBundleCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildAotCommand());
     addSubcommand(BuildIOSCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildIOSFrameworkCommand(
       buildSystem: globals.buildSystem,
-      bundleBuilder: BundleBuilder(),
+      verboseHelp: verboseHelp,
     ));
+    addSubcommand(BuildIOSArchiveCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildBundleCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildWebCommand(verboseHelp: verboseHelp));
     addSubcommand(BuildMacosCommand(verboseHelp: verboseHelp));
@@ -43,7 +41,7 @@ class BuildCommand extends FlutterCommand {
   final String name = 'build';
 
   @override
-  final String description = 'Flutter build commands.';
+  final String description = 'Build an executable app or install bundle.';
 
   @override
   Future<FlutterCommandResult> runCommand() async => null;

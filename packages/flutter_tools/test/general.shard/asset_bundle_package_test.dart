@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:file/file.dart';
@@ -74,7 +73,7 @@ $assetsSection
     bool expectExists = true,
   }) async {
     final AssetBundle bundle = AssetBundleFactory.instance.createBundle();
-    await bundle.build(manifestPath: 'pubspec.yaml');
+    await bundle.build(manifestPath: 'pubspec.yaml', packagesPath: '.packages');
 
     for (final String packageName in packages) {
       for (final String asset in assets) {
@@ -129,7 +128,7 @@ $assetsSection
       writePubspecFile('p/p/pubspec.yaml', 'test_package');
 
       final AssetBundle bundle = AssetBundleFactory.instance.createBundle();
-      await bundle.build(manifestPath: 'pubspec.yaml');
+      await bundle.build(manifestPath: 'pubspec.yaml', packagesPath: '.packages');
       expect(bundle.entries.length, 3); // LICENSE, AssetManifest, FontManifest
       const String expectedAssetManifest = '{}';
       expect(
@@ -157,7 +156,7 @@ $assetsSection
       writeAssets('p/p/', assets);
 
       final AssetBundle bundle = AssetBundleFactory.instance.createBundle();
-      await bundle.build(manifestPath: 'pubspec.yaml');
+      await bundle.build(manifestPath: 'pubspec.yaml', packagesPath: '.packages');
       expect(bundle.entries.length, 3); // LICENSE, AssetManifest, FontManifest
       const String expectedAssetManifest = '{}';
       expect(
@@ -589,7 +588,7 @@ $assetsSection
       writeAssets('p/p/', assetsOnDisk);
 
       final AssetBundle bundle = AssetBundleFactory.instance.createBundle();
-      await bundle.build(manifestPath: 'pubspec.yaml');
+      await bundle.build(manifestPath: 'pubspec.yaml', packagesPath: '.packages');
 
       expect(bundle.entries['AssetManifest.json'], isNull,
         reason: 'Invalid pubspec.yaml should not generate AssetManifest.json'  );

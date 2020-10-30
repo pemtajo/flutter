@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
 import 'package:flutter_driver/flutter_driver.dart';
 import 'package:test/test.dart' hide TypeMatcher, isInstanceOf;
 
@@ -53,10 +51,10 @@ void macroPerfTest(
       await durationFuture;
     });
 
-    final TimelineSummary summary = TimelineSummary.summarize(timeline);
-    summary.writeSummaryToFile(testName, pretty: true);
-    summary.writeTimelineToFile(testName, pretty: true);
-
     driver.close();
+
+    final TimelineSummary summary = TimelineSummary.summarize(timeline);
+    await summary.writeSummaryToFile(testName, pretty: true);
+    await summary.writeTimelineToFile(testName, pretty: true);
   }, timeout: Timeout(timeout));
 }

@@ -57,7 +57,7 @@ abstract class Notification {
   /// with the appropriate type parameters that are ancestors of the given
   /// [BuildContext]. If the [BuildContext] is null, the notification is not
   /// dispatched.
-  void dispatch(BuildContext target) {
+  void dispatch(BuildContext? target) {
     // The `target` may be null if the subtree the notification is supposed to be
     // dispatched in is in the process of being disposed.
     target?.visitAncestorElements(visitAncestor);
@@ -86,6 +86,8 @@ abstract class Notification {
 
 /// A widget that listens for [Notification]s bubbling up the tree.
 ///
+/// {@youtube 560 315 https://www.youtube.com/watch?v=cAnFbFoGM50}
+///
 /// Notifications will trigger the [onNotification] callback only if their
 /// [runtimeType] is a subtype of `T`.
 ///
@@ -93,8 +95,8 @@ abstract class Notification {
 class NotificationListener<T extends Notification> extends StatelessWidget {
   /// Creates a widget that listens for notifications.
   const NotificationListener({
-    Key key,
-    @required this.child,
+    Key? key,
+    required this.child,
     this.onNotification,
   }) : super(key: key);
 
@@ -122,11 +124,11 @@ class NotificationListener<T extends Notification> extends StatelessWidget {
   /// in response to the notification (as layout is currently happening in a
   /// descendant, by definition, since notifications bubble up the tree). For
   /// widgets that depend on layout, consider a [LayoutBuilder] instead.
-  final NotificationListenerCallback<T> onNotification;
+  final NotificationListenerCallback<T>? onNotification;
 
   bool _dispatch(Notification notification, Element element) {
     if (onNotification != null && notification is T) {
-      final bool result = onNotification(notification);
+      final bool result = onNotification!(notification);
       return result == true; // so that null and false have the same effect
     }
     return false;

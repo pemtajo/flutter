@@ -22,10 +22,6 @@ const Color _kScrollbarColor = CupertinoDynamicColor.withBrightness(
   color: Color(0x59000000),
   darkColor: Color(0x80FFFFFF),
 );
-const double _kScrollbarThickness = 3;
-const double _kScrollbarThicknessDragging = 8.0;
-const Radius _kScrollbarRadius = Radius.circular(1.5);
-const Radius _kScrollbarRadiusDragging = Radius.circular(4.0);
 
 // This is the amount of space from the top of a vertical scrollbar to the
 // top edge of the scrollable, measured when the vertical scrollbar overscrolls
@@ -58,12 +54,34 @@ class CupertinoScrollbar extends StatefulWidget {
   /// The [child] should be a source of [ScrollNotification] notifications,
   /// typically a [Scrollable] widget.
   const CupertinoScrollbar({
-    Key key,
+    Key? key,
     this.controller,
     this.isAlwaysShown = false,
-    @required this.child,
-  }) : assert(!isAlwaysShown || controller != null, 'When isAlwaysShown is true, must pass a controller that is attached to a scroll view'),
+    this.thickness = defaultThickness,
+    this.thicknessWhileDragging = defaultThicknessWhileDragging,
+    this.radius = defaultRadius,
+    this.radiusWhileDragging = defaultRadiusWhileDragging,
+    required this.child,
+  }) : assert(thickness != null),
+       assert(thickness < double.infinity),
+       assert(thicknessWhileDragging != null),
+       assert(thicknessWhileDragging < double.infinity),
+       assert(radius != null),
+       assert(radiusWhileDragging != null),
+       assert(!isAlwaysShown || controller != null, 'When isAlwaysShown is true, must pass a controller that is attached to a scroll view'),
        super(key: key);
+
+  /// Default value for [thickness] if it's not specified in [new CupertinoScrollbar].
+  static const double defaultThickness = 3;
+
+  /// Default value for [thicknessWhileDragging] if it's not specified in [new CupertinoScrollbar].
+  static const double defaultThicknessWhileDragging = 8.0;
+
+  /// Default value for [radius] if it's not specified in [new CupertinoScrollbar].
+  static const Radius defaultRadius = Radius.circular(1.5);
+
+  /// Default value for [radiusWhileDragging] if it's not specified in [new CupertinoScrollbar].
+  static const Radius defaultRadiusWhileDragging = Radius.circular(4.0);
 
   /// The subtree to place inside the [CupertinoScrollbar].
   ///
@@ -125,7 +143,7 @@ class CupertinoScrollbar extends StatefulWidget {
   /// ```
   /// {@end-tool}
   /// {@endtemplate}
-  final ScrollController controller;
+  final ScrollController? controller;
 
   /// {@template flutter.cupertino.cupertinoScrollbar.isAlwaysShown}
   /// Indicates whether the [Scrollbar] should always be visible.
@@ -181,31 +199,61 @@ class CupertinoScrollbar extends StatefulWidget {
   /// {@endtemplate}
   final bool isAlwaysShown;
 
+  /// The thickness of the scrollbar when it's not being dragged by the user.
+  ///
+  /// When the user starts dragging the scrollbar, the thickness will animate
+  /// to [thicknessWhileDragging], then animate back when the user stops
+  /// dragging the scrollbar.
+  final double thickness;
+
+  /// The thickness of the scrollbar when it's being dragged by the user.
+  ///
+  /// When the user starts dragging the scrollbar, the thickness will animate
+  /// from [thickness] to this value, then animate back when the user stops
+  /// dragging the scrollbar.
+  final double thicknessWhileDragging;
+
+  /// The radius of the scrollbar edges when the scrollbar is not being dragged
+  /// by the user.
+  ///
+  /// When the user starts dragging the scrollbar, the radius will animate
+  /// to [radiusWhileDragging], then animate back when the user stops dragging
+  /// the scrollbar.
+  final Radius radius;
+
+  /// The radius of the scrollbar edges when the scrollbar is being dragged by
+  /// the user.
+  ///
+  /// When the user starts dragging the scrollbar, the radius will animate
+  /// from [radius] to this value, then animate back when the user stops
+  /// dragging the scrollbar.
+  final Radius radiusWhileDragging;
+
   @override
   _CupertinoScrollbarState createState() => _CupertinoScrollbarState();
 }
 
 class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProviderStateMixin {
   final GlobalKey _customPaintKey = GlobalKey();
-  ScrollbarPainter _painter;
+  ScrollbarPainter? _painter;
 
-  AnimationController _fadeoutAnimationController;
-  Animation<double> _fadeoutOpacityAnimation;
-  AnimationController _thicknessAnimationController;
-  Timer _fadeoutTimer;
-  double _dragScrollbarPositionY;
-  Drag _drag;
+  late AnimationController _fadeoutAnimationController;
+  late Animation<double> _fadeoutOpacityAnimation;
+  late AnimationController _thicknessAnimationController;
+  Timer? _fadeoutTimer;
+  double? _dragScrollbarAxisPosition;
+  Drag? _drag;
 
   double get _thickness {
-    return _kScrollbarThickness + _thicknessAnimationController.value * (_kScrollbarThicknessDragging - _kScrollbarThickness);
+    return widget.thickness + _thicknessAnimationController.value * (widget.thicknessWhileDragging - widget.thickness);
   }
 
   Radius get _radius {
-    return Radius.lerp(_kScrollbarRadius, _kScrollbarRadiusDragging, _thicknessAnimationController.value);
+    return Radius.lerp(widget.radius, widget.radiusWhileDragging, _thicknessAnimationController.value)!;
   }
 
-  ScrollController _currentController;
-  ScrollController get _controller =>
+  ScrollController? _currentController;
+  ScrollController? get _controller =>
       widget.controller ?? PrimaryScrollController.of(context);
 
   @override
@@ -224,7 +272,7 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
       duration: _kScrollbarResizeDuration,
     );
     _thicknessAnimationController.addListener(() {
-      _painter.updateThickness(_thickness, _radius);
+      _painter!.updateThickness(_thickness, _radius);
     });
   }
 
@@ -234,9 +282,9 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
     if (_painter == null) {
       _painter = _buildCupertinoScrollbarPainter(context);
     } else {
-      _painter
-        ..textDirection = Directionality.of(context)
-        ..color = CupertinoDynamicColor.resolve(_kScrollbarColor, context)
+      _painter!
+        ..textDirection = Directionality.of(context)!
+        ..color = CupertinoDynamicColor.resolve(_kScrollbarColor, context)!
         ..padding = MediaQuery.of(context).padding;
     }
     _triggerScrollbar();
@@ -245,6 +293,8 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
   @override
   void didUpdateWidget(CupertinoScrollbar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    assert(_painter != null);
+    _painter!.updateThickness(_thickness, _radius);
     if (widget.isAlwaysShown != oldWidget.isAlwaysShown) {
       if (widget.isAlwaysShown == true) {
         _triggerScrollbar();
@@ -258,8 +308,8 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
   /// Returns a [ScrollbarPainter] visually styled like the iOS scrollbar.
   ScrollbarPainter _buildCupertinoScrollbarPainter(BuildContext context) {
     return ScrollbarPainter(
-      color: CupertinoDynamicColor.resolve(_kScrollbarColor, context),
-      textDirection: Directionality.of(context),
+      color: CupertinoDynamicColor.resolve(_kScrollbarColor, context)!,
+      textDirection: Directionality.of(context)!,
       thickness: _thickness,
       fadeoutOpacityAnimation: _fadeoutOpacityAnimation,
       mainAxisMargin: _kScrollbarMainAxisMargin,
@@ -275,10 +325,10 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
   // show immediately when isAlwaysShown is true.  A scroll event is required in
   // order to paint the thumb.
   void _triggerScrollbar() {
-    WidgetsBinding.instance.addPostFrameCallback((Duration duration) {
+    WidgetsBinding.instance!.addPostFrameCallback((Duration duration) {
       if (widget.isAlwaysShown) {
         _fadeoutTimer?.cancel();
-        widget.controller.position.didUpdateScrollPositionBy(0);
+        widget.controller!.position.didUpdateScrollPositionBy(0);
       }
     });
   }
@@ -290,20 +340,27 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
     // Convert primaryDelta, the amount that the scrollbar moved since the last
     // time _dragScrollbar was called, into the coordinate space of the scroll
     // position, and create/update the drag event with that position.
-    final double scrollOffsetLocal = _painter.getTrackToScroll(primaryDelta);
-    final double scrollOffsetGlobal = scrollOffsetLocal + _currentController.position.pixels;
+    final double scrollOffsetLocal = _painter!.getTrackToScroll(primaryDelta);
+    final double scrollOffsetGlobal = scrollOffsetLocal + _currentController!.position.pixels;
+    final Axis direction = _currentController!.position.axis;
 
     if (_drag == null) {
-      _drag = _currentController.position.drag(
+      _drag = _currentController!.position.drag(
         DragStartDetails(
-          globalPosition: Offset(0.0, scrollOffsetGlobal),
+          globalPosition: direction == Axis.vertical
+            ? Offset(0.0, scrollOffsetGlobal)
+            : Offset(scrollOffsetGlobal, 0.0),
         ),
         () {},
       );
     } else {
-      _drag.update(DragUpdateDetails(
-        globalPosition: Offset(0.0, scrollOffsetGlobal),
-        delta: Offset(0.0, -scrollOffsetLocal),
+      _drag!.update(DragUpdateDetails(
+        globalPosition: direction == Axis.vertical
+          ? Offset(0.0, scrollOffsetGlobal)
+          : Offset(scrollOffsetGlobal, 0.0),
+        delta: direction == Axis.vertical
+          ? Offset(0.0, -scrollOffsetLocal)
+          : Offset(-scrollOffsetLocal, 0.0),
         primaryDelta: -scrollOffsetLocal,
       ));
     }
@@ -319,33 +376,43 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
     }
   }
 
-  bool _checkVertical() {
+  Axis? _getDirection() {
     try {
-      return _currentController.position.axis == Axis.vertical;
+      return _currentController!.position.axis;
     } catch (_) {
       // Ignore the gesture if we cannot determine the direction.
-      return false;
+      return null;
     }
   }
 
-  double _pressStartY = 0.0;
+  double _pressStartAxisPosition = 0.0;
 
   // Long press event callbacks handle the gesture where the user long presses
   // on the scrollbar thumb and then drags the scrollbar without releasing.
   void _handleLongPressStart(LongPressStartDetails details) {
     _currentController = _controller;
-    if (!_checkVertical()) {
+    final Axis? direction = _getDirection();
+    if (direction == null) {
       return;
     }
-    _pressStartY = details.localPosition.dy;
     _fadeoutTimer?.cancel();
     _fadeoutAnimationController.forward();
-    _dragScrollbar(details.localPosition.dy);
-    _dragScrollbarPositionY = details.localPosition.dy;
+    switch (direction) {
+      case Axis.vertical:
+        _pressStartAxisPosition = details.localPosition.dy;
+        _dragScrollbar(details.localPosition.dy);
+        _dragScrollbarAxisPosition = details.localPosition.dy;
+        break;
+      case Axis.horizontal:
+        _pressStartAxisPosition = details.localPosition.dx;
+        _dragScrollbar(details.localPosition.dx);
+        _dragScrollbarAxisPosition = details.localPosition.dx;
+        break;
+    }
   }
 
   void _handleLongPress() {
-    if (!_checkVertical()) {
+    if (_getDirection() == null) {
       return;
     }
     _fadeoutTimer?.cancel();
@@ -355,37 +422,57 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
   }
 
   void _handleLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
-    if (!_checkVertical()) {
+    final Axis? direction = _getDirection();
+    if (direction == null) {
       return;
     }
-    _dragScrollbar(details.localPosition.dy - _dragScrollbarPositionY);
-    _dragScrollbarPositionY = details.localPosition.dy;
+    switch(direction) {
+      case Axis.vertical:
+        _dragScrollbar(details.localPosition.dy - _dragScrollbarAxisPosition!);
+        _dragScrollbarAxisPosition = details.localPosition.dy;
+        break;
+      case Axis.horizontal:
+        _dragScrollbar(details.localPosition.dx - _dragScrollbarAxisPosition!);
+        _dragScrollbarAxisPosition = details.localPosition.dx;
+        break;
+    }
   }
 
   void _handleLongPressEnd(LongPressEndDetails details) {
-    if (!_checkVertical()) {
+    final Axis? direction = _getDirection();
+    if (direction == null) {
       return;
     }
-    _handleDragScrollEnd(details.velocity.pixelsPerSecond.dy);
-    if (details.velocity.pixelsPerSecond.dy.abs() < 10 &&
-        (details.localPosition.dy - _pressStartY).abs() > 0) {
-      HapticFeedback.mediumImpact();
+    switch(direction) {
+      case Axis.vertical:
+        _handleDragScrollEnd(details.velocity.pixelsPerSecond.dy, direction);
+        if (details.velocity.pixelsPerSecond.dy.abs() < 10 &&
+          (details.localPosition.dy - _pressStartAxisPosition).abs() > 0) {
+          HapticFeedback.mediumImpact();
+        }
+        break;
+      case Axis.horizontal:
+        _handleDragScrollEnd(details.velocity.pixelsPerSecond.dx, direction);
+        if (details.velocity.pixelsPerSecond.dx.abs() < 10 &&
+          (details.localPosition.dx - _pressStartAxisPosition).abs() > 0) {
+          HapticFeedback.mediumImpact();
+        }
+        break;
     }
     _currentController = null;
   }
 
-  void _handleDragScrollEnd(double trackVelocityY) {
+  void _handleDragScrollEnd(double trackVelocity, Axis direction) {
     _startFadeoutTimer();
     _thicknessAnimationController.reverse();
-    _dragScrollbarPositionY = null;
-    final double scrollVelocityY = _painter.getTrackToScroll(trackVelocityY);
+    _dragScrollbarAxisPosition = null;
+    final double scrollVelocity = _painter!.getTrackToScroll(trackVelocity);
     _drag?.end(DragEndDetails(
-      primaryVelocity: -scrollVelocityY,
+      primaryVelocity: -scrollVelocity,
       velocity: Velocity(
-        pixelsPerSecond: Offset(
-          0.0,
-          -scrollVelocityY,
-        ),
+        pixelsPerSecond: direction == Axis.vertical
+          ? Offset(0.0, -scrollVelocity)
+          : Offset(-scrollVelocity, 0.0),
       ),
     ));
     _drag = null;
@@ -405,10 +492,10 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
       }
 
       _fadeoutTimer?.cancel();
-      _painter.update(notification.metrics, notification.metrics.axisDirection);
+      _painter!.update(notification.metrics, notification.metrics.axisDirection);
     } else if (notification is ScrollEndNotification) {
       // On iOS, the scrollbar can only go away once the user lifted the finger.
-      if (_dragScrollbarPositionY == null) {
+      if (_dragScrollbarAxisPosition == null) {
         _startFadeoutTimer();
       }
     }
@@ -444,7 +531,7 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
     _fadeoutAnimationController.dispose();
     _thicknessAnimationController.dispose();
     _fadeoutTimer?.cancel();
-    _painter.dispose();
+    _painter!.dispose();
     super.dispose();
   }
 
@@ -470,10 +557,10 @@ class _CupertinoScrollbarState extends State<CupertinoScrollbar> with TickerProv
 // thumb and ignores everything else.
 class _ThumbPressGestureRecognizer extends LongPressGestureRecognizer {
   _ThumbPressGestureRecognizer({
-    double postAcceptSlopTolerance,
-    PointerDeviceKind kind,
-    Object debugOwner,
-    GlobalKey customPaintKey,
+    double? postAcceptSlopTolerance,
+    PointerDeviceKind? kind,
+    required Object debugOwner,
+    required GlobalKey customPaintKey,
   }) :  _customPaintKey = customPaintKey,
         super(
           postAcceptSlopTolerance: postAcceptSlopTolerance,
@@ -500,9 +587,9 @@ bool _hitTestInteractive(GlobalKey customPaintKey, Offset offset) {
   if (customPaintKey.currentContext == null) {
     return false;
   }
-  final CustomPaint customPaint = customPaintKey.currentContext.widget as CustomPaint;
-  final ScrollbarPainter painter = customPaint.foregroundPainter as ScrollbarPainter;
-  final RenderBox renderBox = customPaintKey.currentContext.findRenderObject() as RenderBox;
+  final CustomPaint customPaint = customPaintKey.currentContext!.widget as CustomPaint;
+  final ScrollbarPainter painter = customPaint.foregroundPainter! as ScrollbarPainter;
+  final RenderBox renderBox = customPaintKey.currentContext!.findRenderObject()! as RenderBox;
   final Offset localOffset = renderBox.globalToLocal(offset);
   return painter.hitTestInteractive(localOffset);
 }

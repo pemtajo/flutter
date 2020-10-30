@@ -19,14 +19,7 @@ import 'package:shelf_packages_handler/shelf_packages_handler.dart';
 import 'package:shelf_static/shelf_static.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:stream_channel/stream_channel.dart';
-import 'package:test_api/src/backend/runtime.dart';
-import 'package:test_api/src/backend/suite_platform.dart';
-import 'package:test_core/src/runner/configuration.dart';
-import 'package:test_core/src/runner/environment.dart';
-import 'package:test_core/src/runner/platform.dart';
-import 'package:test_core/src/runner/plugin/platform_helpers.dart';
-import 'package:test_core/src/runner/runner_suite.dart';
-import 'package:test_core/src/runner/suite.dart';
+import 'package:test_core/src/platform.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:webkit_inspection_protocol/webkit_inspection_protocol.dart' hide StackTrace;
 
@@ -41,7 +34,6 @@ import '../dart/package_map.dart';
 import '../globals.dart' as globals;
 import '../project.dart';
 import '../web/chrome.dart';
-
 import 'test_compiler.dart';
 import 'test_config.dart';
 
@@ -75,7 +67,7 @@ class FlutterWebPlatform extends PlatformPlugin {
 
     _testGoldenComparator = TestGoldenComparator(
       shellPath,
-      () => TestCompiler(BuildMode.debug, false, flutterProject, <String>[]),
+      () => TestCompiler(BuildInfo.debug, flutterProject),
     );
   }
 
@@ -222,20 +214,22 @@ class FlutterWebPlatform extends PlatformPlugin {
         scheme: 'package',
         pathSegments: request.requestedUri.pathSegments.skip(1),
       ));
-      final String dirname = p.dirname(fileUri.toFilePath());
-      final String basename = p.basename(fileUri.toFilePath());
-      final shelf.Handler handler = createStaticHandler(dirname);
-      final shelf.Request modifiedRequest = shelf.Request(
-        request.method,
-        request.requestedUri.replace(path: basename),
-        protocolVersion: request.protocolVersion,
-        headers: request.headers,
-        handlerPath: request.handlerPath,
-        url: request.url.replace(path: basename),
-        encoding: request.encoding,
-        context: request.context,
-      );
-      return handler(modifiedRequest);
+      if (fileUri != null) {
+        final String dirname = p.dirname(fileUri.toFilePath());
+        final String basename = p.basename(fileUri.toFilePath());
+        final shelf.Handler handler = createStaticHandler(dirname);
+        final shelf.Request modifiedRequest = shelf.Request(
+          request.method,
+          request.requestedUri.replace(path: basename),
+          protocolVersion: request.protocolVersion,
+          headers: request.headers,
+          handlerPath: request.handlerPath,
+          url: request.url.replace(path: basename),
+          encoding: request.encoding,
+          context: request.context,
+        );
+        return handler(modifiedRequest);
+      }
     }
     return shelf.Response.notFound('Not Found');
   }
@@ -627,9 +621,9 @@ class BrowserManager {
       browserFinder: findChromeExecutable,
       fileSystem: globals.fs,
       operatingSystemUtils: globals.os,
-      logger: globals.logger,
       platform: globals.platform,
       processManager: globals.processManager,
+      logger: globals.logger,
     );
     final Chromium chrome =
       await chromiumLauncher.launch(url.toString(), headless: headless);
@@ -667,7 +661,7 @@ class BrowserManager {
   /// Loads [_BrowserEnvironment].
   Future<_BrowserEnvironment> _loadBrowserEnvironment() async {
     return _BrowserEnvironment(
-        this, null, _browser.remoteDebuggerUri, _onRestartController.stream);
+        this, null, _browser.chromeConnection.url, _onRestartController.stream);
   }
 
   /// Tells the browser to load a test suite from the URL [url].
@@ -887,7 +881,7 @@ class TestGoldenComparator {
     final TestGoldenComparatorProcess process = await _processForTestFile(testUri);
     process.sendCommand(imageFile, goldenKey, updateGoldens);
 
-    final Map<String, dynamic> result = await process.getResponse().timeout(const Duration(seconds: 20));
+    final Map<String, dynamic> result = await process.getResponse();
 
     if (result == null) {
       return 'unknown error';
@@ -951,6 +945,7 @@ class TestGoldenComparatorProcess {
     final File testConfigFile = findTestConfigFile(globals.fs.file(testUri));
     // Generate comparator process for the file.
     return '''
+// @dart=2.9
 import 'dart:convert'; // ignore: dart_convert_import
 import 'dart:io'; // ignore: dart_io_import
 
@@ -962,7 +957,7 @@ void main() async {
   LocalFileComparator comparator = LocalFileComparator(Uri.parse('$testUri'));
   goldenFileComparator = comparator;
 
-  ${testConfigFile != null ? 'test_config.main(() async {' : ''}
+  ${testConfigFile != null ? 'test_config.testExecutable(() async {' : ''}
   final commands = stdin
     .transform<String>(utf8.decoder)
     .transform<String>(const LineSplitter())

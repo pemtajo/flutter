@@ -12,7 +12,7 @@ RenderEditable findRenderEditable(WidgetTester tester) {
   final RenderObject root = tester.renderObject(find.byType(EditableText));
   expect(root, isNotNull);
 
-  RenderEditable renderEditable;
+  late RenderEditable renderEditable;
   void recursiveFinder(RenderObject child) {
     if (child is RenderEditable) {
       renderEditable = child;

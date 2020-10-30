@@ -26,7 +26,7 @@ void main() {
     const double slightlyLarger = 438.8571428571429;
     const double slightlySmaller = 438.85714285714283;
     final List<dynamic> exceptions = <dynamic>[];
-    final FlutterExceptionHandler oldHandler = FlutterError.onError;
+    final FlutterExceptionHandler? oldHandler = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
       exceptions.add(details.exception);
     };
@@ -52,6 +52,24 @@ void main() {
     FlutterError.onError = oldHandler;
   });
 
+  test('Clip behavior is respected', () {
+    const BoxConstraints viewport = BoxConstraints(maxHeight: 100.0, maxWidth: 100.0);
+    final TestClipPaintingContext context = TestClipPaintingContext();
+
+    // By default, clipBehavior should be Clip.none
+    final RenderFlex defaultFlex = RenderFlex(direction: Axis.vertical, children: <RenderBox>[box200x200]);
+    layout(defaultFlex, constraints: viewport, phase: EnginePhase.composite, onErrors: expectOverflowedErrors);
+    defaultFlex.paint(context, Offset.zero);
+    expect(context.clipBehavior, equals(Clip.none));
+
+    for (final Clip clip in Clip.values) {
+      final RenderFlex flex = RenderFlex(direction: Axis.vertical, children: <RenderBox>[box200x200], clipBehavior: clip);
+      layout(flex, constraints: viewport, phase: EnginePhase.composite, onErrors: expectOverflowedErrors);
+      flex.paint(context, Offset.zero);
+      expect(context.clipBehavior, equals(clip));
+    }
+  });
+
   test('Vertical Overflow', () {
     final RenderConstrainedBox flexible = RenderConstrainedBox(
       additionalConstraints: const BoxConstraints.expand()
@@ -64,7 +82,7 @@ void main() {
         flexible,
       ],
     );
-    final FlexParentData flexParentData = flexible.parentData as FlexParentData;
+    final FlexParentData flexParentData = flexible.parentData! as FlexParentData;
     flexParentData.flex = 1;
     const BoxConstraints viewport = BoxConstraints(maxHeight: 100.0, maxWidth: 100.0);
     layout(flex, constraints: viewport);
@@ -87,7 +105,7 @@ void main() {
         flexible,
       ],
     );
-    final FlexParentData flexParentData = flexible.parentData as FlexParentData;
+    final FlexParentData flexParentData = flexible.parentData! as FlexParentData;
     flexParentData.flex = 1;
     const BoxConstraints viewport = BoxConstraints(maxHeight: 100.0, maxWidth: 100.0);
     layout(flex, constraints: viewport);
@@ -147,7 +165,7 @@ void main() {
     expect(box2.size.width, equals(0.0));
     expect(box2.size.height, equals(0.0));
 
-    final FlexParentData box2ParentData = box2.parentData as FlexParentData;
+    final FlexParentData box2ParentData = box2.parentData! as FlexParentData;
     box2ParentData.flex = 1;
     flex.markNeedsLayout();
     pumpFrame();
@@ -162,7 +180,7 @@ void main() {
     final RenderDecoratedBox box2 = RenderDecoratedBox(decoration: const BoxDecoration());
     final RenderFlex flex = RenderFlex(textDirection: TextDirection.ltr);
     flex.setupParentData(box2);
-    final FlexParentData box2ParentData = box2.parentData as FlexParentData;
+    final FlexParentData box2ParentData = box2.parentData! as FlexParentData;
     box2ParentData.flex = 2;
     flex.addAll(<RenderBox>[box1, box2]);
     layout(flex, constraints: const BoxConstraints(
@@ -198,7 +216,7 @@ void main() {
       minWidth: 0.0, maxWidth: 500.0, minHeight: 0.0, maxHeight: 400.0),
     );
     Offset getOffset(RenderBox box) {
-      final FlexParentData parentData = box.parentData as FlexParentData;
+      final FlexParentData parentData = box.parentData! as FlexParentData;
       return parentData.offset;
     }
     expect(getOffset(box1).dx, equals(50.0));
@@ -228,7 +246,7 @@ void main() {
       minWidth: 0.0, maxWidth: 500.0, minHeight: 0.0, maxHeight: 400.0),
     );
     Offset getOffset(RenderBox box) {
-      final FlexParentData parentData = box.parentData as FlexParentData;
+      final FlexParentData parentData = box.parentData! as FlexParentData;
       return parentData.offset;
     }
     expect(getOffset(box1).dx, equals(0.0));
@@ -239,7 +257,7 @@ void main() {
     expect(box3.size.width, equals(100.0));
 
     void setFit(RenderBox box, FlexFit fit) {
-      final FlexParentData parentData = box.parentData as FlexParentData;
+      final FlexParentData parentData = box.parentData! as FlexParentData;
       parentData.flex = 1;
       parentData.fit = fit;
     }
@@ -280,7 +298,7 @@ void main() {
       minWidth: 0.0, maxWidth: 500.0, minHeight: 0.0, maxHeight: 400.0),
     );
     Offset getOffset(RenderBox box) {
-      final FlexParentData parentData = box.parentData as FlexParentData;
+      final FlexParentData parentData = box.parentData! as FlexParentData;
       return parentData.offset;
     }
     expect(getOffset(box1).dx, equals(0.0));
@@ -292,7 +310,7 @@ void main() {
     expect(flex.size.width, equals(300.0));
 
     void setFit(RenderBox box, FlexFit fit) {
-      final FlexParentData parentData = box.parentData as FlexParentData;
+      final FlexParentData parentData = box.parentData! as FlexParentData;
       parentData.flex = 1;
       parentData.fit = fit;
     }
@@ -342,7 +360,7 @@ void main() {
     flex.addAll(<RenderBox>[box1, box2, box3]);
     layout(parent);
     expect(flex.size, const Size(300.0, 100.0));
-    final FlexParentData box2ParentData = box2.parentData as FlexParentData;
+    final FlexParentData box2ParentData = box2.parentData! as FlexParentData;
     box2ParentData.flex = 1;
     box2ParentData.fit = FlexFit.loose;
     flex.markNeedsLayout();
@@ -381,7 +399,7 @@ void main() {
       child: flex,
     );
     flex.addAll(<RenderBox>[box1, box2, box3]);
-    final FlexParentData box2ParentData = box2.parentData as FlexParentData;
+    final FlexParentData box2ParentData = box2.parentData! as FlexParentData;
     box2ParentData.flex = 1;
     final List<dynamic> exceptions = <dynamic>[];
     layout(parent, onErrors: () {
@@ -408,7 +426,7 @@ void main() {
       child: flex,
     );
     flex.addAll(<RenderBox>[box1, box2, box3]);
-    final FlexParentData box2ParentData = box2.parentData as FlexParentData;
+    final FlexParentData box2ParentData = box2.parentData! as FlexParentData;
     box2ParentData.flex = 1;
     box2ParentData.fit = FlexFit.loose;
     final List<dynamic> exceptions = <dynamic>[];

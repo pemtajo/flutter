@@ -12,14 +12,14 @@ import 'inherited_notifier.dart';
 /// A widget that manages a [FocusNode] to allow keyboard focus to be given
 /// to this widget and its descendants.
 ///
-/// When the focus is gained or lost, [onFocusChanged] is called.
+/// When the focus is gained or lost, [onFocusChange] is called.
 ///
 /// For keyboard events, [onKey] is called if [FocusNode.hasFocus] is true for
 /// this widget's [focusNode], unless a focused descendant's [onKey] callback
-/// returns false when called.
+/// returns true when called.
 ///
 /// This widget does not provide any visual indication that the focus has
-/// changed. Any desired visual changes should be made when [onFocusChanged] is
+/// changed. Any desired visual changes should be made when [onFocusChange] is
 /// called.
 ///
 /// To access the [FocusNode] of the nearest ancestor [Focus] widget and
@@ -27,7 +27,7 @@ import 'inherited_notifier.dart';
 /// changes, use the [Focus.of] and [FocusScope.of] static methods.
 ///
 /// To access the focused state of the nearest [Focus] widget, use
-/// [Focus.hasFocus] from a build method, which also establishes a relationship
+/// [FocusNode.hasFocus] from a build method, which also establishes a relationship
 /// between the calling widget and the [Focus] widget that will rebuild the
 /// calling widget when the focus changes.
 ///
@@ -60,7 +60,7 @@ import 'inherited_notifier.dart';
 /// ```dart
 /// Color _color = Colors.white;
 ///
-/// bool _handleKeyPress(FocusNode node, RawKeyEvent event) {
+/// KeyEventResult _handleKeyPress(FocusNode node, RawKeyEvent event) {
 ///   if (event is RawKeyDownEvent) {
 ///     print('Focus node ${node.debugLabel} got key event: ${event.logicalKey}');
 ///     if (event.logicalKey == LogicalKeyboardKey.keyR) {
@@ -68,22 +68,22 @@ import 'inherited_notifier.dart';
 ///       setState(() {
 ///         _color = Colors.red;
 ///       });
-///       return true;
+///       return KeyEventResult.handled;
 ///     } else if (event.logicalKey == LogicalKeyboardKey.keyG) {
 ///       print('Changing color to green.');
 ///       setState(() {
 ///         _color = Colors.green;
 ///       });
-///       return true;
+///       return KeyEventResult.handled;
 ///     } else if (event.logicalKey == LogicalKeyboardKey.keyB) {
 ///       print('Changing color to blue.');
 ///       setState(() {
 ///         _color = Colors.blue;
 ///       });
-///       return true;
+///       return KeyEventResult.handled;
 ///     }
 ///   }
-///   return false;
+///   return KeyEventResult.ignored;
 /// }
 ///
 /// @override
@@ -272,8 +272,8 @@ class Focus extends StatefulWidget {
   ///
   /// The [autofocus] argument must not be null.
   const Focus({
-    Key key,
-    @required this.child,
+    Key? key,
+    required this.child,
     this.focusNode,
     this.autofocus = false,
     this.onFocusChange,
@@ -299,7 +299,7 @@ class Focus extends StatefulWidget {
   /// print it to the console call [debugDumpFocusTree].
   ///
   /// Defaults to null.
-  final String debugLabel;
+  final String? debugLabel;
 
   /// The child widget of this [Focus].
   ///
@@ -319,13 +319,13 @@ class Focus extends StatefulWidget {
   /// keyboards in general. For text input, consider [TextField],
   /// [EditableText], or [CupertinoTextField] instead, which do support these
   /// things.
-  final FocusOnKeyCallback onKey;
+  final FocusOnKeyCallback? onKey;
 
   /// Handler called when the focus changes.
   ///
   /// Called with true if this widget's node gains focus, and false if it loses
   /// focus.
-  final ValueChanged<bool> onFocusChange;
+  final ValueChanged<bool>? onFocusChange;
 
   /// {@template flutter.widgets.Focus.autofocus}
   /// True if this widget will be selected as the initial focus when no other
@@ -354,7 +354,7 @@ class Focus extends StatefulWidget {
   /// done with it, but this widget will attach/detach and reparent the node
   /// when needed.
   /// {@endtemplate}
-  final FocusNode focusNode;
+  final FocusNode? focusNode;
 
   /// Sets the [FocusNode.skipTraversal] flag on the focus node so that it won't
   /// be visited by the [FocusTraversalPolicy].
@@ -362,16 +362,17 @@ class Focus extends StatefulWidget {
   /// This is sometimes useful if a [Focus] widget should receive key events as
   /// part of the focus chain, but shouldn't be accessible via focus traversal.
   ///
-  /// This is different from [canRequestFocus] because it only implies that the
-  /// widget can't be reached via traversal, not that it can't be focused. It may
-  /// still be focused explicitly.
-  final bool skipTraversal;
+  /// This is different from [FocusNode.canRequestFocus] because it only implies
+  /// that the widget can't be reached via traversal, not that it can't be
+  /// focused. It may still be focused explicitly.
+  final bool? skipTraversal;
 
   /// {@template flutter.widgets.Focus.includeSemantics}
   /// Include semantics information in this widget.
   ///
-  /// If true, this widget will include a [Semantics] node that
-  /// indicates the [Semantics.focusable] and [Semantics.focused] properties.
+  /// If true, this widget will include a [Semantics] node that indicates the
+  /// [SemanticsProperties.focusable] and [SemanticsProperties.focused]
+  /// properties.
   ///
   /// It is not typical to set this to false, as that can affect the semantics
   /// information available to accessibility systems.
@@ -384,45 +385,46 @@ class Focus extends StatefulWidget {
   /// If true, this widget may request the primary focus.
   ///
   /// Defaults to true.  Set to false if you want the [FocusNode] this widget
-  /// manages to do nothing when [requestFocus] is called on it. Does not affect
-  /// the children of this node, and [FocusNode.hasFocus] can still return true
-  /// if this node is the ancestor of the primary focus.
+  /// manages to do nothing when [FocusNode.requestFocus] is called on it. Does
+  /// not affect the children of this node, and [FocusNode.hasFocus] can still
+  /// return true if this node is the ancestor of the primary focus.
   ///
-  /// This is different than [skipTraversal] because [skipTraversal] still
-  /// allows the widget to be focused, just not traversed to.
+  /// This is different than [Focus.skipTraversal] because [Focus.skipTraversal]
+  /// still allows the widget to be focused, just not traversed to.
   ///
-  /// Setting [canRequestFocus] to false implies that the widget will also be
-  /// skipped for traversal purposes.
+  /// Setting [FocusNode.canRequestFocus] to false implies that the widget will
+  /// also be skipped for traversal purposes.
   ///
   /// See also:
   ///
-  ///  * [DefaultFocusTraversal], a widget that sets the traversal policy for
-  ///    its descendants.
-  ///  * [FocusTraversalPolicy], a class that can be extended to describe a
-  ///    traversal policy.
+  /// * [FocusTraversalGroup], a widget that sets the traversal policy for its
+  ///   descendants.
+  /// * [FocusTraversalPolicy], a class that can be extended to describe a
+  ///   traversal policy.
   /// {@endtemplate}
-  final bool canRequestFocus;
+  final bool? canRequestFocus;
 
   /// {@template flutter.widgets.Focus.descendantsAreFocusable}
   /// If false, will make this widget's descendants unfocusable.
   ///
   /// Defaults to true. Does not affect focusability of this node (just its
-  /// descendants): for that, use [canRequestFocus].
+  /// descendants): for that, use [FocusNode.canRequestFocus].
   ///
   /// If any descendants are focused when this is set to false, they will be
   /// unfocused. When `descendantsAreFocusable` is set to true again, they will
   /// not be refocused, although they will be able to accept focus again.
   ///
-  /// Does not affect the value of [canRequestFocus] on the descendants.
+  /// Does not affect the value of [FocusNode.canRequestFocus] on the
+  /// descendants.
   ///
   /// See also:
   ///
-  ///  * [ExcludeFocus], a widget that uses this property to conditionally
-  ///    exclude focus for a subtree.
-  ///  * [FocusTraversalGroup], a widget used to group together and configure
-  ///    the focus traversal policy for a widget subtree that has a
-  ///    `descendantsAreFocusable` parameter to conditionally block focus for a
-  ///    subtree.
+  /// * [ExcludeFocus], a widget that uses this property to conditionally
+  ///   exclude focus for a subtree.
+  /// * [FocusTraversalGroup], a widget used to group together and configure the
+  ///   focus traversal policy for a widget subtree that has a
+  ///   `descendantsAreFocusable` parameter to conditionally block focus for a
+  ///   subtree.
   /// {@endtemplate}
   final bool descendantsAreFocusable;
 
@@ -431,21 +433,24 @@ class Focus extends StatefulWidget {
   ///
   /// If no [Focus] node is found before reaching the nearest [FocusScope]
   /// widget, or there is no [Focus] widget in scope, then this method will
-  /// throw an exception. To return null instead of throwing, pass true for
-  /// [nullOk].
+  /// throw an exception.
   ///
-  /// The [context] and [nullOk] arguments must not be null.
+  /// The `context` and `scopeOk` arguments must not be null.
   ///
   /// Calling this function creates a dependency that will rebuild the given
   /// context when the focus changes.
-  static FocusNode of(BuildContext context, { bool nullOk = false, bool scopeOk = false }) {
+  ///
+  /// See also:
+  ///
+  ///  * [maybeOf], which is similar to this function, but will return null
+  ///    instead of throwing if it doesn't find a [Focus] node.
+  static FocusNode of(BuildContext context, { bool scopeOk = false }) {
     assert(context != null);
-    assert(nullOk != null);
     assert(scopeOk != null);
-    final _FocusMarker marker = context.dependOnInheritedWidgetOfExactType<_FocusMarker>();
-    final FocusNode node = marker?.notifier;
-    if (node == null) {
-      if (!nullOk) {
+    final _FocusMarker? marker = context.dependOnInheritedWidgetOfExactType<_FocusMarker>();
+    final FocusNode? node = marker?.notifier;
+    assert(() {
+      if (node == null) {
         throw FlutterError(
           'Focus.of() was called with a context that does not contain a Focus widget.\n'
           'No Focus widget ancestor could be found starting from the context that was passed to '
@@ -455,10 +460,10 @@ class Focus extends StatefulWidget {
           '  $context'
         );
       }
-      return null;
-    }
-    if (!scopeOk && node is FocusScopeNode) {
-      if (!nullOk) {
+      return true;
+    }());
+    assert(() {
+      if (!scopeOk && node is FocusScopeNode) {
         throw FlutterError(
           'Focus.of() was called with a context that does not contain a Focus between the given '
           'context and the nearest FocusScope widget.\n'
@@ -470,6 +475,36 @@ class Focus extends StatefulWidget {
           '  $context'
         );
       }
+      return true;
+    }());
+    return node!;
+  }
+
+  /// Returns the [focusNode] of the [Focus] that most tightly encloses the
+  /// given [BuildContext].
+  ///
+  /// If no [Focus] node is found before reaching the nearest [FocusScope]
+  /// widget, or there is no [Focus] widget in scope, then this method will
+  /// return null.
+  ///
+  /// The `context` and `scopeOk` arguments must not be null.
+  ///
+  /// Calling this function creates a dependency that will rebuild the given
+  /// context when the focus changes.
+  ///
+  /// See also:
+  ///
+  ///  * [of], which is similar to this function, but will throw an exception if
+  ///    it doesn't find a [Focus] node instead of returning null.
+  static FocusNode? maybeOf(BuildContext context, { bool scopeOk = false }) {
+    assert(context != null);
+    assert(scopeOk != null);
+    final _FocusMarker? marker = context.dependOnInheritedWidgetOfExactType<_FocusMarker>();
+    final FocusNode? node = marker?.notifier;
+    if (node == null) {
+      return null;
+    }
+    if (!scopeOk && node is FocusScopeNode) {
       return null;
     }
     return node;
@@ -487,7 +522,7 @@ class Focus extends StatefulWidget {
   ///
   /// Calling this function creates a dependency that will rebuild the given
   /// context when the focus changes.
-  static bool isAt(BuildContext context) => Focus.of(context, nullOk: true)?.hasFocus ?? false;
+  static bool isAt(BuildContext context) => Focus.maybeOf(context)?.hasFocus ?? false;
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -504,13 +539,13 @@ class Focus extends StatefulWidget {
 }
 
 class _FocusState extends State<Focus> {
-  FocusNode _internalNode;
-  FocusNode get focusNode => widget.focusNode ?? _internalNode;
-  bool _hasPrimaryFocus;
-  bool _canRequestFocus;
-  bool _descendantsAreFocusable;
+  FocusNode? _internalNode;
+  FocusNode get focusNode => widget.focusNode ?? _internalNode!;
+  bool? _hasPrimaryFocus;
+  bool? _canRequestFocus;
+  bool? _descendantsAreFocusable;
   bool _didAutofocus = false;
-  FocusAttachment _focusAttachment;
+  FocusAttachment? _focusAttachment;
 
   @override
   void initState() {
@@ -525,14 +560,12 @@ class _FocusState extends State<Focus> {
       // _createNode is overridden in _FocusScopeState.
       _internalNode ??= _createNode();
     }
-    if (widget.descendantsAreFocusable != null) {
-      focusNode.descendantsAreFocusable = widget.descendantsAreFocusable;
-    }
+    focusNode.descendantsAreFocusable = widget.descendantsAreFocusable;
     if (widget.skipTraversal != null) {
-      focusNode.skipTraversal = widget.skipTraversal;
+      focusNode.skipTraversal = widget.skipTraversal!;
     }
     if (widget.canRequestFocus != null) {
-      focusNode.canRequestFocus = widget.canRequestFocus;
+      focusNode.canRequestFocus = widget.canRequestFocus!;
     }
     _canRequestFocus = focusNode.canRequestFocus;
     _descendantsAreFocusable = focusNode.descendantsAreFocusable;
@@ -549,7 +582,7 @@ class _FocusState extends State<Focus> {
     return FocusNode(
       debugLabel: widget.debugLabel,
       canRequestFocus: widget.canRequestFocus ?? true,
-      descendantsAreFocusable: widget.descendantsAreFocusable ?? false,
+      descendantsAreFocusable: widget.descendantsAreFocusable,
       skipTraversal: widget.skipTraversal ?? false,
     );
   }
@@ -559,7 +592,7 @@ class _FocusState extends State<Focus> {
     // Regardless of the node owner, we need to remove it from the tree and stop
     // listening to it.
     focusNode.removeListener(_handleFocusChanged);
-    _focusAttachment.detach();
+    _focusAttachment!.detach();
 
     // Don't manage the lifetime of external nodes given to the widget, just the
     // internal node.
@@ -601,23 +634,21 @@ class _FocusState extends State<Focus> {
       // Only update the debug label in debug builds, and only if we own the
       // node.
       if (oldWidget.debugLabel != widget.debugLabel && _internalNode != null) {
-        _internalNode.debugLabel = widget.debugLabel;
+        _internalNode!.debugLabel = widget.debugLabel;
       }
       return true;
     }());
 
     if (oldWidget.focusNode == widget.focusNode) {
       if (widget.skipTraversal != null) {
-        focusNode.skipTraversal = widget.skipTraversal;
+        focusNode.skipTraversal = widget.skipTraversal!;
       }
       if (widget.canRequestFocus != null) {
-        focusNode.canRequestFocus = widget.canRequestFocus;
+        focusNode.canRequestFocus = widget.canRequestFocus!;
       }
-      if (widget.descendantsAreFocusable != null) {
-        focusNode.descendantsAreFocusable = widget.descendantsAreFocusable;
-      }
+      focusNode.descendantsAreFocusable = widget.descendantsAreFocusable;
     } else {
-      _focusAttachment.detach();
+      _focusAttachment!.detach();
       focusNode.removeListener(_handleFocusChanged);
       _initNode();
     }
@@ -632,7 +663,7 @@ class _FocusState extends State<Focus> {
     final bool canRequestFocus = focusNode.canRequestFocus;
     final bool descendantsAreFocusable = focusNode.descendantsAreFocusable;
     if (widget.onFocusChange != null) {
-      widget.onFocusChange(focusNode.hasFocus);
+      widget.onFocusChange!(focusNode.hasFocus);
     }
     if (_hasPrimaryFocus != hasPrimaryFocus) {
       setState(() {
@@ -653,7 +684,7 @@ class _FocusState extends State<Focus> {
 
   @override
   Widget build(BuildContext context) {
-    _focusAttachment.reparent();
+    _focusAttachment!.reparent();
     Widget child = widget.child;
     if (widget.includeSemantics) {
       child = Semantics(
@@ -799,7 +830,7 @@ class _FocusState extends State<Focus> {
 ///               children: <Widget>[
 ///                 // This button would be not visible, but still focusable from
 ///                 // the foreground pane without the FocusScope.
-///                 RaisedButton(
+///                 ElevatedButton(
 ///                   onPressed: () => print('You pressed the other button!'),
 ///                   child: Text('ANOTHER BUTTON TO FOCUS'),
 ///                 ),
@@ -868,17 +899,17 @@ class FocusScope extends Focus {
   ///
   /// The [child] argument is required and must not be null.
   ///
-  /// The [autofocus], and [showDecorations] arguments must not be null.
+  /// The [autofocus] argument must not be null.
   const FocusScope({
-    Key key,
-    FocusScopeNode node,
-    @required Widget child,
+    Key? key,
+    FocusScopeNode? node,
+    required Widget child,
     bool autofocus = false,
-    ValueChanged<bool> onFocusChange,
-    bool canRequestFocus,
-    bool skipTraversal,
-    FocusOnKeyCallback onKey,
-    String debugLabel,
+    ValueChanged<bool>? onFocusChange,
+    bool? canRequestFocus,
+    bool? skipTraversal,
+    FocusOnKeyCallback? onKey,
+    String? debugLabel,
   })  : assert(child != null),
         assert(autofocus != null),
         super(
@@ -902,8 +933,8 @@ class FocusScope extends Focus {
   /// The [context] argument must not be null.
   static FocusScopeNode of(BuildContext context) {
     assert(context != null);
-    final _FocusMarker marker = context.dependOnInheritedWidgetOfExactType<_FocusMarker>();
-    return marker?.notifier?.nearestScope ?? context.owner.focusManager.rootScope;
+    final _FocusMarker? marker = context.dependOnInheritedWidgetOfExactType<_FocusMarker>();
+    return marker?.notifier?.nearestScope ?? context.owner!.focusManager.rootScope;
   }
 
   @override
@@ -922,7 +953,7 @@ class _FocusScopeState extends _FocusState {
 
   @override
   Widget build(BuildContext context) {
-    _focusAttachment.reparent();
+    _focusAttachment!.reparent();
     return Semantics(
       explicitChildNodes: true,
       child: _FocusMarker(
@@ -936,9 +967,9 @@ class _FocusScopeState extends _FocusState {
 // The InheritedWidget marker for Focus and FocusScope.
 class _FocusMarker extends InheritedNotifier<FocusNode> {
   const _FocusMarker({
-    Key key,
-    @required FocusNode node,
-    @required Widget child,
+    Key? key,
+    required FocusNode node,
+    required Widget child,
   })  : assert(node != null),
         assert(child != null),
         super(key: key, notifier: node, child: child);
@@ -947,7 +978,7 @@ class _FocusMarker extends InheritedNotifier<FocusNode> {
 /// A widget that controls whether or not the descendants of this widget are
 /// focusable.
 ///
-/// Does not affect the value of [canRequestFocus] on the descendants.
+/// Does not affect the value of [Focus.canRequestFocus] on the descendants.
 ///
 /// See also:
 ///
@@ -962,9 +993,9 @@ class ExcludeFocus extends StatelessWidget {
   ///
   /// The [child] argument is required, and must not be null.
   const ExcludeFocus({
-    Key key,
+    Key? key,
     this.excluding = true,
-    @required this.child,
+    required this.child,
   })  : assert(excluding != null),
         assert(child != null),
         super(key: key);
@@ -977,16 +1008,17 @@ class ExcludeFocus extends StatelessWidget {
   /// unfocused. When `excluding` is set to false again, they will not be
   /// refocused, although they will be able to accept focus again.
   ///
-  /// Does not affect the value of [canRequestFocus] on the descendants.
+  /// Does not affect the value of [FocusNode.canRequestFocus] on the
+  /// descendants.
   ///
   /// See also:
   ///
-  ///  * [Focus.descendantsAreFocusable], the attribute of a [Focus] widget that
-  ///    controls this same property for focus widgets.
-  ///  * [FocusTraversalGroup], a widget used to group together and configure
-  ///    the focus traversal policy for a widget subtree that has a
-  ///    `descendantsAreFocusable` parameter to conditionally block focus for a
-  ///    subtree.
+  /// * [Focus.descendantsAreFocusable], the attribute of a [Focus] widget that
+  ///   controls this same property for focus widgets.
+  /// * [FocusTraversalGroup], a widget used to group together and configure the
+  ///   focus traversal policy for a widget subtree that has a
+  ///   `descendantsAreFocusable` parameter to conditionally block focus for a
+  ///   subtree.
   final bool excluding;
 
   /// The child widget of this [ExcludeFocus].

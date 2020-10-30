@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:core' hide print;
 import 'dart:io' hide exit;
@@ -64,9 +63,6 @@ Future<void> run(List<String> arguments) async {
 
   print('$clock Test package imports...');
   await verifyNoTestPackageImports(flutterRoot);
-
-  print('$clock Generated plugin registrants...');
-  await verifyGeneratedPluginRegistrants(flutterRoot);
 
   print('$clock Bad imports (framework)...');
   await verifyNoBadImportsInFlutter(flutterRoot);
@@ -135,7 +131,7 @@ Future<void> run(List<String> arguments) async {
 final RegExp _findDeprecationPattern = RegExp(r'@[Dd]eprecated');
 final RegExp _deprecationPattern1 = RegExp(r'^( *)@Deprecated\($'); // ignore: flutter_deprecation_syntax (see analyze.dart)
 final RegExp _deprecationPattern2 = RegExp(r"^ *'(.+) '$");
-final RegExp _deprecationPattern3 = RegExp(r"^ *'This feature was deprecated after v([0-9]+)\.([0-9]+)\.([0-9]+)\.'$");
+final RegExp _deprecationPattern3 = RegExp(r"^ *'This feature was deprecated after v([0-9]+)\.([0-9]+)\.([0-9]+)(\-[0-9]+\.[0-9]+\.pre)?\.'$");
 final RegExp _deprecationPattern4 = RegExp(r'^ *\)$');
 
 /// Some deprecation notices are special, for example they're used to annotate members that
@@ -145,8 +141,8 @@ final RegExp _deprecationPattern4 = RegExp(r'^ *\)$');
 /// the regexp just above...)
 const String _ignoreDeprecation = ' // ignore: flutter_deprecation_syntax (see analyze.dart)';
 
-/// Some deprecation notices are grand-fathered in for now. They must have an issue listed.
-final RegExp _grandfatheredDeprecation = RegExp(r' // ignore: flutter_deprecation_syntax, https://github.com/flutter/flutter/issues/[0-9]+$');
+/// Some deprecation notices are exempt for historical reasons. They must have an issue listed.
+final RegExp _legacyDeprecation = RegExp(r' // ignore: flutter_deprecation_syntax, https://github.com/flutter/flutter/issues/[0-9]+$');
 
 Future<void> verifyDeprecations(String workingDirectory, { int minimumMatches = 2000 }) async {
   final List<String> errors = <String>[];
@@ -157,7 +153,7 @@ Future<void> verifyDeprecations(String workingDirectory, { int minimumMatches = 
     for (final String line in lines) {
       if (line.contains(_findDeprecationPattern) &&
           !line.endsWith(_ignoreDeprecation) &&
-          !line.contains(_grandfatheredDeprecation)) {
+          !line.contains(_legacyDeprecation)) {
         linesWithDeprecations.add(lineNumber);
       }
       lineNumber += 1;
@@ -182,7 +178,7 @@ Future<void> verifyDeprecations(String workingDirectory, { int minimumMatches = 
           if (message == null) {
             final String firstChar = String.fromCharCode(match2[1].runes.first);
             if (firstChar.toUpperCase() != firstChar)
-              throw 'Deprecation notice should be a grammatically correct sentence and start with a capital letter; see style guide.';
+              throw 'Deprecation notice should be a grammatically correct sentence and start with a capital letter; see style guide: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo';
           }
           message = match2[1];
           lineNumber += 1;
@@ -190,6 +186,13 @@ Future<void> verifyDeprecations(String workingDirectory, { int minimumMatches = 
             throw 'Incomplete deprecation notice.';
           match3 = _deprecationPattern3.firstMatch(lines[lineNumber]);
         } while (match3 == null);
+        final int v1 = int.parse(match3[1]);
+        final int v2 = int.parse(match3[2]);
+        final bool hasV4 = match3[4] != null;
+        if (v1 > 1 || (v1 == 1 && v2 >= 20)) {
+          if (!hasV4)
+            throw 'Deprecation notice does not accurately indicate a dev branch version number; please see https://flutter.dev/docs/development/tools/sdk/releases to find the latest dev build version number.';
+        }
         if (!message.endsWith('.') && !message.endsWith('!') && !message.endsWith('?'))
           throw 'Deprecation notice should be a grammatically correct sentence and end with a period.';
         if (!lines[lineNumber].startsWith("$indent  '"))
@@ -359,44 +362,6 @@ Future<void> verifyNoTestPackageImports(String workingDirectory) async {
       "Rather than depending on 'package:test' directly, use one of the shims:",
       ...shims,
       "This insulates us from breaking changes in 'package:test'."
-    ]);
-  }
-}
-
-Future<void> verifyGeneratedPluginRegistrants(String flutterRoot) async {
-  final Directory flutterRootDir = Directory(flutterRoot);
-
-  final Map<String, List<File>> packageToRegistrants = <String, List<File>>{};
-
-  for (final File file in flutterRootDir.listSync(recursive: true).whereType<File>().where(_isGeneratedPluginRegistrant)) {
-    final String package = _getPackageFor(file, flutterRootDir);
-    final List<File> registrants = packageToRegistrants.putIfAbsent(package, () => <File>[]);
-    registrants.add(file);
-  }
-
-  final Set<String> outOfDate = <String>{};
-
-  for (final String package in packageToRegistrants.keys) {
-    final Map<File, String> fileToContent = <File, String>{};
-    for (final File f in packageToRegistrants[package]) {
-      fileToContent[f] = f.readAsStringSync();
-    }
-    await runCommand(flutter, <String>['inject-plugins'],
-      workingDirectory: package,
-      outputMode: OutputMode.discard,
-    );
-    for (final File registrant in fileToContent.keys) {
-      if (registrant.readAsStringSync() != fileToContent[registrant]) {
-        outOfDate.add(registrant.path);
-      }
-    }
-  }
-
-  if (outOfDate.isNotEmpty) {
-    exitWithError(<String>[
-      '${bold}The following GeneratedPluginRegistrants are out of date:$reset',
-      for (String registrant in outOfDate) ' - $registrant',
-      '\nRun "flutter inject-plugins" in the package that\'s out of date.',
     ]);
   }
 }
@@ -691,7 +656,7 @@ class Hash256 {
 // If you are adding/changing template images, use the flutter_template_images
 // package and a .img.tmpl placeholder instead.
 // If you have other binaries to add, please consult Hixie for advice.
-final Set<Hash256> _grandfatheredBinaries = <Hash256>{
+final Set<Hash256> _legacyBinaries = <Hash256>{
   // DEFAULT ICON IMAGES
 
   // packages/flutter_tools/templates/app/android.tmpl/app/src/main/res/mipmap-hdpi/ic_launcher.png
@@ -1046,18 +1011,18 @@ final Set<Hash256> _grandfatheredBinaries = <Hash256>{
   const Hash256(0x63D2ABD0041C3E3B, 0x4B52AD8D382353B5, 0x3C51C6785E76CE56, 0xED9DACAD2D2E31C4),
 };
 
-Future<void> verifyNoBinaries(String workingDirectory, { Set<Hash256> grandfatheredBinaries }) async {
-  // Please do not add anything to the _grandfatheredBinaries set above.
+Future<void> verifyNoBinaries(String workingDirectory, { Set<Hash256> legacyBinaries }) async {
+  // Please do not add anything to the _legacyBinaries set above.
   // We have a policy of not checking in binaries into this repository.
   // If you are adding/changing template images, use the flutter_template_images
   // package and a .img.tmpl placeholder instead.
   // If you have other binaries to add, please consult Hixie for advice.
   assert(
-    _grandfatheredBinaries
+    _legacyBinaries
       .expand<int>((Hash256 hash) => <int>[hash.a, hash.b, hash.c, hash.d])
       .reduce((int value, int element) => value ^ element) == 0x606B51C908B40BFA // Please do not modify this line.
   );
-  grandfatheredBinaries ??= _grandfatheredBinaries;
+  legacyBinaries ??= _legacyBinaries;
   if (!Platform.isWindows) { // TODO(ianh): Port this to Windows
     final EvalResult evalResult = await _evalCommand(
       'git', <String>['ls-files', '-z'],
@@ -1087,7 +1052,7 @@ Future<void> verifyNoBinaries(String workingDirectory, { Set<Hash256> grandfathe
         utf8.decode(bytes);
       } on FormatException catch (error) {
         final Digest digest = sha256.convert(bytes);
-        if (!grandfatheredBinaries.contains(Hash256.fromDigest(digest)))
+        if (!legacyBinaries.contains(Hash256.fromDigest(digest)))
           problems.add('${file.path}:${error.offset}: file is not valid UTF-8');
       }
     }
@@ -1135,6 +1100,8 @@ Iterable<File> _allFiles(String workingDirectory, String extension, { @required 
         continue;
       if (path.basename(entity.path) == 'gradlew.bat')
         continue;
+      if (path.basename(entity.path) == '.DS_Store')
+        continue;
       if (extension == null || path.extension(entity.path) == '.$extension') {
         matches += 1;
         yield entity;
@@ -1144,9 +1111,13 @@ Iterable<File> _allFiles(String workingDirectory, String extension, { @required 
         continue;
       if (path.basename(entity.path) == '.git')
         continue;
+      if (path.basename(entity.path) == '.idea')
+        continue;
       if (path.basename(entity.path) == '.gradle')
         continue;
       if (path.basename(entity.path) == '.dart_tool')
+        continue;
+      if (path.basename(entity.path) == '.idea')
         continue;
       if (path.basename(entity.path) == 'build')
         continue;
@@ -1282,20 +1253,12 @@ List<T> _deepSearch<T>(Map<T, Set<T>> map, T start, [ Set<T> seen ]) {
   return null;
 }
 
-String _getPackageFor(File entity, Directory flutterRootDir) {
-  for (Directory dir = entity.parent; dir != flutterRootDir; dir = dir.parent) {
-    if (File(path.join(dir.path, 'pubspec.yaml')).existsSync()) {
-      return dir.path;
-    }
-  }
-  throw ArgumentError('$entity is not within a dart package.');
-}
-
 bool _isGeneratedPluginRegistrant(File file) {
   final String filename = path.basename(file.path);
   return !file.path.contains('.pub-cache')
       && (filename == 'GeneratedPluginRegistrant.java' ||
           filename == 'GeneratedPluginRegistrant.h' ||
           filename == 'GeneratedPluginRegistrant.m' ||
-          filename == 'generated_plugin_registrant.dart');
+          filename == 'generated_plugin_registrant.dart' ||
+          filename == 'generated_plugin_registrant.h');
 }

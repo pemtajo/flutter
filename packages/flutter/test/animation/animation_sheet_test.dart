@@ -49,7 +49,7 @@ void main() {
     await tester.pumpWidget(display);
 
     await expectLater(find.byWidget(display), matchesGoldenFile('test.animation_sheet_builder.records.png'));
-  }, skip: isBrowser);
+  }, skip: isBrowser); // https://github.com/flutter/flutter/issues/42767
 
   testWidgets('correctly wraps a row', (WidgetTester tester) async {
     final AnimationSheetBuilder builder = AnimationSheetBuilder(frameSize: _DecuplePixels.size);
@@ -66,7 +66,7 @@ void main() {
     await tester.pumpWidget(display);
 
     await expectLater(find.byWidget(display), matchesGoldenFile('test.animation_sheet_builder.wraps.png'));
-  }, skip: isBrowser);
+  }, skip: isBrowser); // https://github.com/flutter/flutter/issues/42767
 }
 
 // An animation of a yellow pixel moving from left to right, in a container of
@@ -82,8 +82,8 @@ class _DecuplePixels extends StatefulWidget {
   State<StatefulWidget> createState() => _DecuplePixelsState();
 }
 
-class _DecuplePixelsState extends State<_DecuplePixels> with SingleTickerProviderStateMixin {
-  AnimationController _controller;
+class _DecuplePixelsState extends State<_DecuplePixels> with SingleTickerProviderStateMixin<_DecuplePixels> {
+  late AnimationController _controller;
 
   @override
   void initState() {
@@ -105,7 +105,7 @@ class _DecuplePixelsState extends State<_DecuplePixels> with SingleTickerProvide
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller.view,
-      builder: (BuildContext context, Widget child) {
+      builder: (BuildContext context, Widget? child) {
         return CustomPaint(
           painter: _PaintDecuplePixels(_controller.value),
         );
@@ -130,7 +130,7 @@ class _PaintDecuplePixels extends CustomPainter {
     final Rect rect = RectTween(
       begin: const Rect.fromLTWH(1, 1, 1, 1),
       end: const Rect.fromLTWH(11, 1, 1, 1),
-    ).transform(value);
+    ).transform(value)!;
     canvas.drawRect(rect, Paint()..color = Colors.yellow);
     final Paint black = Paint()..color = Colors.black;
     canvas

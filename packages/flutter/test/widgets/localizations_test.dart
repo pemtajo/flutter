@@ -10,7 +10,7 @@ import 'package:flutter/widgets.dart';
 void main() {
   final TestAutomatedTestWidgetsFlutterBinding binding = TestAutomatedTestWidgetsFlutterBinding();
 
-  testWidgets('Locale is available when Localizations widget stops defering frames', (WidgetTester tester) async {
+  testWidgets('Locale is available when Localizations widget stops deferring frames', (WidgetTester tester) async {
     final FakeLocalizationsDelegate delegate = FakeLocalizationsDelegate();
     await tester.pumpWidget(Localizations(
       locale: const Locale('fo'),
@@ -20,11 +20,11 @@ void main() {
       ],
       child: const Text('loaded')
     ));
-    final dynamic state = tester.state(find.byType(Localizations));
-    expect(state.locale, isNull);
+    final dynamic state = tester.state(find.byType(Localizations)); // ignore: unnecessary_nullable_for_final_variable_declarations
+    expect(state!.locale, isNull);
     expect(find.text('loaded'), findsNothing);
 
-    Locale locale;
+    late Locale locale;
     binding.onAllowFrame = () {
       locale = state.locale as Locale;
     };
@@ -51,12 +51,11 @@ class FakeLocalizationsDelegate extends LocalizationsDelegate<String> {
 
 class TestAutomatedTestWidgetsFlutterBinding extends AutomatedTestWidgetsFlutterBinding {
 
-  VoidCallback onAllowFrame;
+  VoidCallback? onAllowFrame;
 
   @override
   void allowFirstFrame() {
-    if (onAllowFrame != null)
-      onAllowFrame();
+    onAllowFrame?.call();
     super.allowFirstFrame();
   }
 }

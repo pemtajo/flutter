@@ -10,8 +10,8 @@ import 'package:flutter_tools/src/base/logger.dart';
 import 'package:flutter_tools/src/base/platform.dart';
 import 'package:flutter_tools/src/base/terminal.dart';
 import 'package:flutter_tools/src/build_info.dart';
-import 'package:flutter_tools/src/build_runner/devfs_web.dart';
-import 'package:flutter_tools/src/build_runner/resident_web_runner.dart';
+import 'package:flutter_tools/src/isolated/devfs_web.dart';
+import 'package:flutter_tools/src/isolated/resident_web_runner.dart';
 import 'package:flutter_tools/src/build_system/build_system.dart';
 import 'package:flutter_tools/src/dart/pub.dart';
 import 'package:flutter_tools/src/device.dart';
@@ -70,9 +70,9 @@ void main() {
 
   test('Can successfully run and connect without vmservice', () => testbed.run(() async {
     _setupMocks();
-    final DelegateLogger delegateLogger = globals.logger as DelegateLogger;
+    final FakeStatusLogger fakeStatusLogger = globals.logger as FakeStatusLogger;
     final MockStatus mockStatus = MockStatus();
-    delegateLogger.status = mockStatus;
+    fakeStatusLogger.status = mockStatus;
     final Completer<DebugConnectionInfo> connectionInfoCompleter = Completer<DebugConnectionInfo>();
     unawaited(residentWebRunner.run(
       connectionInfoCompleter: connectionInfoCompleter,
@@ -83,13 +83,39 @@ void main() {
     verify(mockStatus.stop()).called(1);
   }, overrides: <Type, Generator>{
     BuildSystem: () => mockBuildSystem,
-    Logger: () => DelegateLogger(BufferLogger(
+    Logger: () => FakeStatusLogger(BufferLogger(
       terminal: AnsiTerminal(
         stdio: null,
         platform: const LocalPlatform(),
       ),
       outputPreferences: OutputPreferences.test(),
     )),
+  }));
+
+  // Regression test for https://github.com/flutter/flutter/issues/60613
+  test('ResidentWebRunner calls appFailedToStart if initial compilation fails', () => testbed.run(() async {
+    _setupMocks();
+    when(mockBuildSystem.build(any, any)).thenAnswer((Invocation invocation) async {
+      return BuildResult(success: false);
+    });
+    expect(() async => await residentWebRunner.run(), throwsToolExit());
+    expect(await residentWebRunner.waitForAppToFinish(), 1);
+
+  }, overrides: <Type, Generator>{
+    BuildSystem: () => mockBuildSystem,
+  }));
+
+  // Regression test for https://github.com/flutter/flutter/issues/60613
+  test('ResidentWebRunner calls appFailedToStart if error is thrown during startup', () => testbed.run(() async {
+    _setupMocks();
+    when(mockBuildSystem.build(any, any)).thenAnswer((Invocation invocation) async {
+      throw Exception('foo');
+    });
+    expect(() async => await residentWebRunner.run(), throwsA(isA<Exception>()));
+    expect(await residentWebRunner.waitForAppToFinish(), 1);
+
+  }, overrides: <Type, Generator>{
+    BuildSystem: () => mockBuildSystem,
   }));
 
   test('Can full restart after attaching', () => testbed.run(() async {

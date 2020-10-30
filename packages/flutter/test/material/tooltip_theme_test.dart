@@ -63,6 +63,8 @@ void main() {
 
   testWidgets('TooltipThemeData implements debugFillProperties', (WidgetTester tester) async {
     final DiagnosticPropertiesBuilder builder = DiagnosticPropertiesBuilder();
+    const Duration wait = Duration(milliseconds: 100);
+    const Duration show = Duration(milliseconds: 200);
     const TooltipThemeData(
       height: 15.0,
       padding: EdgeInsets.all(20.0),
@@ -71,8 +73,8 @@ void main() {
       excludeFromSemantics: true,
       decoration: BoxDecoration(color: Color(0xffffffff)),
       textStyle: TextStyle(decoration: TextDecoration.underline),
-      waitDuration: Duration(milliseconds: 100),
-      showDuration: Duration(milliseconds: 200),
+      waitDuration: wait,
+      showDuration: show,
     ).debugFillProperties(builder);
 
     final List<String> description = builder.properties
@@ -88,8 +90,8 @@ void main() {
       'semantics: excluded',
       'decoration: BoxDecoration(color: Color(0xffffffff))',
       'textStyle: TextStyle(inherit: true, decoration: TextDecoration.underline)',
-      'wait duration: 0:00:00.100000',
-      'show duration: 0:00:00.200000',
+      'wait duration: ${wait.toString()}',
+      'show duration: ${show.toString()}',
     ]);
   });
 
@@ -147,7 +149,7 @@ void main() {
      *                   *
      *********************/
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent! as RenderBox;
     expect(tip.size.height, equals(100.0));
     expect(tip.localToGlobal(tip.size.topLeft(Offset.zero)).dy, equals(100.0));
     expect(tip.localToGlobal(tip.size.bottomRight(Offset.zero)).dy, equals(200.0));
@@ -205,7 +207,7 @@ void main() {
      *                   *
      *********************/
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent! as RenderBox;
     expect(tip.size.height, equals(100.0));
     expect(tip.localToGlobal(tip.size.topLeft(Offset.zero)).dy, equals(100.0));
     expect(tip.localToGlobal(tip.size.bottomRight(Offset.zero)).dy, equals(200.0));
@@ -276,7 +278,7 @@ void main() {
      *                   * }- 10.0 margin
      *********************/
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent! as RenderBox;
     expect(tip.size.height, equals(190.0));
     expect(tip.localToGlobal(tip.size.topLeft(Offset.zero)).dy, equals(399.0));
     expect(tip.localToGlobal(tip.size.bottomRight(Offset.zero)).dy, equals(589.0));
@@ -345,7 +347,7 @@ void main() {
      *                   * }- 10.0 margin
      *********************/
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent! as RenderBox;
     expect(tip.size.height, equals(190.0));
     expect(tip.localToGlobal(tip.size.topLeft(Offset.zero)).dy, equals(399.0));
     expect(tip.localToGlobal(tip.size.bottomRight(Offset.zero)).dy, equals(589.0));
@@ -404,7 +406,7 @@ void main() {
      *                   * }- 10.0 margin
      *********************/
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent! as RenderBox;
     expect(tip.size.height, equals(190.0));
     expect(tip.localToGlobal(tip.size.topLeft(Offset.zero)).dy, equals(400.0));
     expect(tip.localToGlobal(tip.size.bottomRight(Offset.zero)).dy, equals(590.0));
@@ -461,7 +463,7 @@ void main() {
      *                   * }- 10.0 margin
      *********************/
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent! as RenderBox;
     expect(tip.size.height, equals(190.0));
     expect(tip.localToGlobal(tip.size.topLeft(Offset.zero)).dy, equals(400.0));
     expect(tip.localToGlobal(tip.size.bottomRight(Offset.zero)).dy, equals(590.0));
@@ -501,7 +503,7 @@ void main() {
     (key.currentState as dynamic).ensureTooltipVisible(); // Before using "as dynamic" in your code, see note at the top of the file.
     await tester.pump(const Duration(seconds: 2)); // faded in, show timer started (and at 0.0)
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent.parent.parent.parent.parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent!.parent!.parent!.parent!.parent! as RenderBox;
     final RenderBox tooltipContent = tester.renderObject(find.text(tooltipText));
 
     final Offset topLeftTipInGlobal = tip.localToGlobal(tip.size.topLeft(Offset.zero));
@@ -557,7 +559,7 @@ void main() {
     (key.currentState as dynamic).ensureTooltipVisible(); // Before using "as dynamic" in your code, see note at the top of the file.
     await tester.pump(const Duration(seconds: 2)); // faded in, show timer started (and at 0.0)
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent.parent.parent.parent.parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent!.parent!.parent!.parent!.parent! as RenderBox;
     final RenderBox tooltipContent = tester.renderObject(find.text(tooltipText));
 
     final Offset topLeftTipInGlobal = tip.localToGlobal(tip.size.topLeft(Offset.zero));
@@ -605,7 +607,7 @@ void main() {
     (key.currentState as dynamic).ensureTooltipVisible(); // Before using "as dynamic" in your code, see note at the top of the file.
     await tester.pump(const Duration(seconds: 2)); // faded in, show timer started (and at 0.0)
 
-    final TextStyle textStyle = tester.widget<Text>(find.text(tooltipText)).style;
+    final TextStyle textStyle = tester.widget<Text>(find.text(tooltipText)).style!;
     expect(textStyle.color, Colors.orange);
     expect(textStyle.fontFamily, null);
     expect(textStyle.decoration, TextDecoration.underline);
@@ -634,7 +636,7 @@ void main() {
     (key.currentState as dynamic).ensureTooltipVisible(); // Before using "as dynamic" in your code, see note at the top of the file.
     await tester.pump(const Duration(seconds: 2)); // faded in, show timer started (and at 0.0)
 
-    final TextStyle textStyle = tester.widget<Text>(find.text(tooltipText)).style;
+    final TextStyle textStyle = tester.widget<Text>(find.text(tooltipText)).style!;
     expect(textStyle.color, Colors.orange);
     expect(textStyle.fontFamily, null);
     expect(textStyle.decoration, TextDecoration.underline);
@@ -677,7 +679,7 @@ void main() {
     (key.currentState as dynamic).ensureTooltipVisible(); // Before using "as dynamic" in your code, see note at the top of the file.
     await tester.pump(const Duration(seconds: 2)); // faded in, show timer started (and at 0.0)
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent.parent.parent.parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent!.parent!.parent!.parent! as RenderBox;
 
     expect(tip.size.height, equals(32.0));
     expect(tip.size.width, equals(74.0));
@@ -719,7 +721,7 @@ void main() {
     (key.currentState as dynamic).ensureTooltipVisible(); // Before using "as dynamic" in your code, see note at the top of the file.
     await tester.pump(const Duration(seconds: 2)); // faded in, show timer started (and at 0.0)
 
-    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent.parent.parent.parent as RenderBox;
+    final RenderBox tip = tester.renderObject(find.text(tooltipText)).parent!.parent!.parent!.parent! as RenderBox;
 
     expect(tip.size.height, equals(32.0));
     expect(tip.size.width, equals(74.0));
@@ -1002,11 +1004,15 @@ void main() {
         TestSemantics.rootChild(
           children: <TestSemantics>[
             TestSemantics(
-              flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
               children: <TestSemantics>[
                 TestSemantics(
-                  label: 'Foo\nBar',
-                  textDirection: TextDirection.ltr,
+                  flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
+                  children: <TestSemantics>[
+                    TestSemantics(
+                      label: 'Foo\nBar',
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1040,11 +1046,15 @@ void main() {
         TestSemantics.rootChild(
           children: <TestSemantics>[
             TestSemantics(
-              flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
               children: <TestSemantics>[
                 TestSemantics(
-                  label: 'Foo\nBar',
-                  textDirection: TextDirection.ltr,
+                  flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
+                  children: <TestSemantics>[
+                    TestSemantics(
+                      label: 'Foo\nBar',
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1080,11 +1090,15 @@ void main() {
         TestSemantics.rootChild(
           children: <TestSemantics>[
             TestSemantics(
-              flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
               children: <TestSemantics>[
                 TestSemantics(
-                  label: 'Bar',
-                  textDirection: TextDirection.ltr,
+                  flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
+                  children: <TestSemantics>[
+                    TestSemantics(
+                      label: 'Bar',
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1118,11 +1132,15 @@ void main() {
         TestSemantics.rootChild(
           children: <TestSemantics>[
             TestSemantics(
-              flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
               children: <TestSemantics>[
                 TestSemantics(
-                  label: 'Bar',
-                  textDirection: TextDirection.ltr,
+                  flags: <SemanticsFlag>[SemanticsFlag.scopesRoute],
+                  children: <TestSemantics>[
+                    TestSemantics(
+                      label: 'Bar',
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1239,6 +1257,6 @@ void main() {
 
 SemanticsNode findDebugSemantics(RenderObject object) {
   if (object.debugSemantics != null)
-    return object.debugSemantics;
-  return findDebugSemantics(object.parent as RenderObject);
+    return object.debugSemantics!;
+  return findDebugSemantics(object.parent! as RenderObject);
 }

@@ -30,6 +30,14 @@ void main() {
         throwsStateError,
       );
     });
+    test('AsyncSnapshot basic constructors', () {
+      expect(const AsyncSnapshot<int>.nothing().connectionState, ConnectionState.none);
+      expect(const AsyncSnapshot<int>.nothing().data, isNull);
+      expect(const AsyncSnapshot<int>.nothing().error, isNull);
+      expect(const AsyncSnapshot<int>.waiting().connectionState, ConnectionState.waiting);
+      expect(const AsyncSnapshot<int>.waiting().data, isNull);
+      expect(const AsyncSnapshot<int>.waiting().error, isNull);
+    });
   });
   group('Async smoke tests', () {
     testWidgets('FutureBuilder', (WidgetTester tester) async {
@@ -332,7 +340,7 @@ Future<void> eventFiring(WidgetTester tester) async {
 }
 
 class StringCollector extends StreamBuilderBase<String, List<String>> {
-  const StringCollector({ Key key, Stream<String> stream }) : super(key: key, stream: stream);
+  const StringCollector({ Key? key, Stream<String>? stream }) : super(key: key, stream: stream);
 
   @override
   List<String> initial() => <String>[];

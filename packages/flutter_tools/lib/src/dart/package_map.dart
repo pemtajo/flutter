@@ -13,6 +13,7 @@ import '../base/logger.dart';
 
 const String kPackagesFileName = '.packages';
 
+// No touching!
 String get globalPackagesPath => _globalPackagesPath ?? kPackagesFileName;
 
 set globalPackagesPath(String value) {
@@ -31,9 +32,10 @@ String _globalPackagesPath;
 Future<PackageConfig> loadPackageConfigWithLogging(File file, {
   @required Logger logger,
   bool throwOnError = true,
-}) {
+}) async {
   final FileSystem fileSystem = file.fileSystem;
-  return loadPackageConfigUri(
+  bool didError = false;
+  final PackageConfig result = await loadPackageConfigUri(
     file.absolute.uri,
     loader: (Uri uri) {
       final File configFile = fileSystem.file(uri);
@@ -55,7 +57,11 @@ Future<PackageConfig> loadPackageConfigWithLogging(File file, {
         message += '\nDid you run this command from the same directory as your pubspec.yaml file?';
       }
       logger.printError(message);
-      throwToolExit(null);
+      didError = true;
     }
   );
+  if (didError) {
+    throwToolExit(null);
+  }
+  return result;
 }

@@ -13,8 +13,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class TestChannelBuffersFlutterBinding extends BindingBase with SchedulerBinding, ServicesBinding {
-}
+class TestChannelBuffersFlutterBinding extends BindingBase with SchedulerBinding, ServicesBinding { }
 
 void main() {
   ByteData _makeByteData(String str) {
@@ -34,15 +33,15 @@ void main() {
     final TestChannelBuffersFlutterBinding binding = TestChannelBuffersFlutterBinding();
     expect(binding.defaultBinaryMessenger, isNotNull);
     bool didCallCallback = false;
-    final ui.PlatformMessageResponseCallback callback = (ByteData responseData) {
+    final ui.PlatformMessageResponseCallback callback = (ByteData? responseData) {
       didCallCallback = true;
     };
     const String payload = 'bar';
     final ByteData data = _makeByteData(payload);
     ui.channelBuffers.push(channel, data, callback);
     bool didDrainData = false;
-    binding.defaultBinaryMessenger.setMessageHandler(channel, (ByteData message) async {
-      expect(_getString(message), payload);
+    binding.defaultBinaryMessenger.setMessageHandler(channel, (ByteData? message) async {
+      expect(_getString(message!), payload);
       didDrainData = true;
       return null;
     });

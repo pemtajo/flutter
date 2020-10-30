@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
 import 'package:flutter_tools/src/base/io.dart';
 import 'package:flutter_tools/src/dart/pub.dart';
 import 'package:meta/meta.dart';
@@ -30,6 +28,7 @@ class ThrowingPub implements Pub {
     bool offline = false,
     bool checkLastModified = true,
     bool skipPubspecYamlCheck = false,
+    bool generateSyntheticPackage = false,
     String flutterRootOverride,
   }) {
     throw UnsupportedError('Attempted to invoke pub during test.');

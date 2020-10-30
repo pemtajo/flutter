@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
+import 'package:file/memory.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/io.dart';
 import 'package:flutter_tools/src/build_info.dart';
@@ -77,7 +76,10 @@ void main() {
       final MockFlutterDevice mockFlutterDevice = MockFlutterDevice();
       when(mockFlutterDevice.device).thenReturn(mockDevice);
       final List<FlutterDevice> devices = <FlutterDevice>[mockFlutterDevice];
-      final int result = await ColdRunner(devices).run();
+      final int result = await ColdRunner(
+        devices,
+        debuggingOptions: DebuggingOptions.disabled(BuildInfo.debug),
+      ).run();
 
       expect(result, 1);
       expect(testLogger.errorText, matches(r'Tried to run .*, but that file does not exist\.'));
@@ -93,7 +95,7 @@ void main() {
           route: anyNamed('route')
       )).thenAnswer((Invocation invocation) => Future<int>.value(1));
       final List<FlutterDevice> devices = <FlutterDevice>[mockFlutterDevice];
-      final MockFile applicationBinary = MockFile();
+      final File applicationBinary = MemoryFileSystem.test().file('binary');
       final int result = await ColdRunner(
         devices,
         applicationBinary: applicationBinary,
@@ -109,7 +111,6 @@ void main() {
   });
 }
 
-class MockFile extends Mock implements File {}
 class MockFlutterDevice extends Mock implements FlutterDevice {}
 class MockDevice extends Mock implements Device {
   MockDevice() {
@@ -133,8 +134,13 @@ class TestFlutterDevice extends FlutterDevice {
     ReloadSources reloadSources,
     Restart restart,
     CompileExpression compileExpression,
-    ReloadMethod reloadMethod,
     GetSkSLMethod getSkSLMethod,
+    PrintStructuredErrorLogMethod printStructuredErrorLogMethod,
+    bool disableDds = false,
+    bool disableServiceAuthCodes = false,
+    int hostVmServicePort,
+    int ddsPort,
+    bool ipv6 = false,
   }) async {
     throw exception;
   }

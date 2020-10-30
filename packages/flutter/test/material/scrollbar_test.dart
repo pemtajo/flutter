@@ -11,20 +11,18 @@ import 'package:flutter_test/flutter_test.dart';
 import '../rendering/mock_canvas.dart';
 
 class TestCanvas implements Canvas {
-  TestCanvas([this.invocations]);
-
-  final List<Invocation> invocations;
+  final List<Invocation> invocations = <Invocation>[];
 
   @override
   void noSuchMethod(Invocation invocation) {
-    invocations?.add(invocation);
+    invocations.add(invocation);
   }
 }
 
 Widget _buildBoilerplate({
   TextDirection textDirection = TextDirection.ltr,
   EdgeInsets padding = EdgeInsets.zero,
-  Widget child,
+  required Widget child,
 }) {
   return Directionality(
     textDirection: textDirection,
@@ -65,15 +63,15 @@ void main() {
       ),
     );
 
-    SchedulerBinding.instance.debugAssertNoTransientCallbacks('Building a list with a scrollbar triggered an animation.');
+    SchedulerBinding.instance!.debugAssertNoTransientCallbacks('Building a list with a scrollbar triggered an animation.');
     await tester.tap(find.byType(ListView));
-    SchedulerBinding.instance.debugAssertNoTransientCallbacks('Tapping a block with a scrollbar triggered an animation.');
+    SchedulerBinding.instance!.debugAssertNoTransientCallbacks('Tapping a block with a scrollbar triggered an animation.');
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.drag(find.byType(ListView), const Offset(0.0, -10.0));
-    expect(SchedulerBinding.instance.transientCallbackCount, greaterThan(0));
+    expect(SchedulerBinding.instance!.transientCallbackCount, greaterThan(0));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
@@ -114,12 +112,11 @@ void main() {
     );
     scrollPainter.update(metrics, AxisDirection.down);
 
-    final List<Invocation> invocations = <Invocation>[];
-    final TestCanvas canvas = TestCanvas(invocations);
+    final TestCanvas canvas = TestCanvas();
     scrollPainter.paint(canvas, const Size(10.0, 100.0));
 
     // Scrollbar is not supposed to draw anything if there isn't enough content.
-    expect(invocations.isEmpty, isTrue);
+    expect(canvas.invocations.isEmpty, isTrue);
   });
 
   testWidgets('Adaptive scrollbar', (WidgetTester tester) async {
@@ -172,7 +169,7 @@ void main() {
 
   testWidgets('Scrollbar passes controller to CupertinoScrollbar', (WidgetTester tester) async {
     final ScrollController controller = ScrollController();
-    Widget viewWithScroll(TargetPlatform platform) {
+    Widget viewWithScroll(TargetPlatform? platform) {
       return _buildBoilerplate(
         child: Theme(
           data: ThemeData(
@@ -511,5 +508,52 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     expect(materialScrollbar, isNot(paints..rect()));
+  });
+
+  testWidgets('Scrollbar respects thickness and radius', (WidgetTester tester) async {
+    final ScrollController controller = ScrollController();
+    Widget viewWithScroll({Radius? radius}) {
+      return _buildBoilerplate(
+        child: Theme(
+          data: ThemeData(),
+          child: Scrollbar(
+            controller: controller,
+            thickness: 20,
+            radius: radius,
+            child: SingleChildScrollView(
+              controller: controller,
+              child: const SizedBox(
+                width: 1600.0,
+                height: 1200.0,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Scroll a bit to cause the scrollbar thumb to be shown;
+    // undo the scroll to put the thumb back at the top.
+    await tester.pumpWidget(viewWithScroll());
+    const double scrollAmount = 10.0;
+    final TestGesture scrollGesture = await tester.startGesture(tester.getCenter(find.byType(SingleChildScrollView)));
+    await scrollGesture.moveBy(const Offset(0.0, -scrollAmount));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await scrollGesture.moveBy(const Offset(0.0, scrollAmount));
+    await tester.pump();
+    await scrollGesture.up();
+    await tester.pump();
+
+    // Long press on the scrollbar thumb and expect it to grow
+    expect(find.byType(Scrollbar), paints..rect(
+      rect: const Rect.fromLTWH(780, 0, 20, 300),
+    ));
+    await tester.pumpWidget(viewWithScroll(radius: const Radius.circular(10)));
+    expect(find.byType(Scrollbar), paints..rrect(
+      rrect: RRect.fromRectAndRadius(const Rect.fromLTWH(780, 0, 20, 300), const Radius.circular(10)),
+    ));
+
+    await tester.pumpAndSettle();
   });
 }

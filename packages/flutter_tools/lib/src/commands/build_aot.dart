@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
 import '../aot.dart';
 import '../base/common.dart';
 import '../build_info.dart';
@@ -51,8 +49,12 @@ class BuildAotCommand extends BuildSubCommand with TargetPlatformBasedDevelopmen
   @override
   final String name = 'aot';
 
+  // TODO(jonahwilliams): remove after https://github.com/flutter/flutter/issues/49562 is resolved.
   @override
-  final String description = "Build an ahead-of-time compiled snapshot of your app's Dart code.";
+  bool get deprecated => true;
+
+  @override
+  final String description = "(deprecated) Build an ahead-of-time compiled snapshot of your app's Dart code.";
 
   @override
   Future<FlutterCommandResult> runCommand() async {

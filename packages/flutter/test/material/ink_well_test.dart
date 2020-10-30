@@ -313,6 +313,36 @@ void main() {
     await gesture.up();
   });
 
+  testWidgets('ink response uses radius for focus highlight', (WidgetTester tester) async {
+    FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
+    final FocusNode focusNode = FocusNode(debugLabel: 'Ink Focus');
+    await tester.pumpWidget(
+      Material(
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: Container(
+              width: 100,
+              height: 100,
+              child: InkResponse(
+                focusNode: focusNode,
+                radius: 20,
+                focusColor: const Color(0xff0000ff),
+                onTap: () { },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final RenderObject inkFeatures = tester.allRenderObjects.firstWhere((RenderObject object) => object.runtimeType.toString() == '_RenderInkFeatures');
+    expect(inkFeatures, paintsExactlyCountTimes(#drawCircle, 0));
+    focusNode.requestFocus();
+    await tester.pumpAndSettle();
+    expect(inkFeatures, paints..circle(radius: 20, color: const Color(0xff0000ff)));
+  });
+
   testWidgets("ink response doesn't change color on focus when on touch device", (WidgetTester tester) async {
     FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTouch;
     final FocusNode focusNode = FocusNode(debugLabel: 'Ink Focus');
@@ -368,7 +398,7 @@ void main() {
       ),
     );
 
-    expect(RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.click);
+    expect(RendererBinding.instance!.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.click);
 
     // Test default of InkWell()
     await tester.pumpWidget(
@@ -385,7 +415,7 @@ void main() {
       ),
     );
 
-    expect(RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.click);
+    expect(RendererBinding.instance!.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.click);
 
     // Test disabled
     await tester.pumpWidget(
@@ -400,7 +430,7 @@ void main() {
       ),
     );
 
-    expect(RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.basic);
+    expect(RendererBinding.instance!.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.basic);
 
     // Test default of InkResponse()
     await tester.pumpWidget(
@@ -417,7 +447,7 @@ void main() {
       ),
     );
 
-    expect(RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.click);
+    expect(RendererBinding.instance!.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.click);
 
     // Test disabled
     await tester.pumpWidget(
@@ -432,18 +462,18 @@ void main() {
       ),
     );
 
-    expect(RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.basic);
+    expect(RendererBinding.instance!.mouseTracker.debugDeviceActiveCursor(1), SystemMouseCursors.basic);
   });
 
   group('feedback', () {
-    FeedbackTester feedback;
+    late FeedbackTester feedback;
 
     setUp(() {
       feedback = FeedbackTester();
     });
 
     tearDown(() {
-      feedback?.dispose();
+      feedback.dispose();
     });
 
     testWidgets('enabled (default)', (WidgetTester tester) async {
@@ -708,7 +738,7 @@ void main() {
   testWidgets('When ink wells are nested, only the inner one is triggered by tap splash', (WidgetTester tester) async {
     final GlobalKey middleKey = GlobalKey();
     final GlobalKey innerKey = GlobalKey();
-    Widget paddedInkWell({Key key, Widget child}) {
+    Widget paddedInkWell({Key? key, Widget? child}) {
       return InkWell(
         key: key,
         onTap: () {},
@@ -737,7 +767,7 @@ void main() {
         ),
       ),
     );
-    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)));
+    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)))!;
 
     // Press
     final TestGesture gesture = await tester.startGesture(tester.getCenter(find.byKey(innerKey)), pointer: 1);
@@ -774,7 +804,7 @@ void main() {
   testWidgets('Reparenting parent should allow both inkwells to show splash afterwards', (WidgetTester tester) async {
     final GlobalKey middleKey = GlobalKey();
     final GlobalKey innerKey = GlobalKey();
-    Widget paddedInkWell({Key key, Widget child}) {
+    Widget paddedInkWell({Key? key, Widget? child}) {
       return InkWell(
         key: key,
         onTap: () {},
@@ -810,7 +840,7 @@ void main() {
         ),
       ),
     );
-    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)));
+    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)))!;
 
     // Press
     final TestGesture gesture = await tester.startGesture(tester.getCenter(find.byKey(innerKey)), pointer: 1);
@@ -862,7 +892,7 @@ void main() {
   testWidgets('Parent inkwell does not block child inkwells from splashes', (WidgetTester tester) async {
     final GlobalKey middleKey = GlobalKey();
     final GlobalKey innerKey = GlobalKey();
-    Widget paddedInkWell({Key key, Widget child}) {
+    Widget paddedInkWell({Key? key, Widget? child}) {
       return InkWell(
         key: key,
         onTap: () {},
@@ -891,7 +921,7 @@ void main() {
         ),
       ),
     );
-    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)));
+    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)))!;
 
     // Press middle
     await tester.startGesture(tester.getTopLeft(find.byKey(middleKey)) + const Offset(1, 1), pointer: 1);
@@ -951,7 +981,7 @@ void main() {
         ),
       ),
     );
-    final MaterialInkController material = Material.of(tester.element(find.byKey(leftKey)));
+    final MaterialInkController material = Material.of(tester.element(find.byKey(leftKey)))!;
 
     final Offset parentPosition = tester.getTopLeft(find.byKey(parentKey)) + const Offset(1, 1);
 
@@ -1000,10 +1030,10 @@ void main() {
     final GlobalKey rightKey = GlobalKey();
 
     Widget doubleInkWellRow({
-      double leftWidth,
-      double rightWidth,
-      Widget leftChild,
-      Widget rightChild,
+      required double leftWidth,
+      required double rightWidth,
+      Widget? leftChild,
+      Widget? rightChild,
     }) {
       return Material(
         child: Directionality(
@@ -1063,7 +1093,7 @@ void main() {
         ),
       ),
     );
-    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)));
+    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)))!;
 
     // Press inner
     final TestGesture gesture = await tester.startGesture(const Offset(100, 50), pointer: 1);
@@ -1137,7 +1167,7 @@ void main() {
         ),
       ),
     );
-    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)));
+    final MaterialInkController material = Material.of(tester.element(find.byKey(innerKey)))!;
 
     // Press
     final TestGesture gesture = await tester.startGesture(tester.getCenter(find.byKey(innerKey)), pointer: 1);
@@ -1158,5 +1188,104 @@ void main() {
     await gesture.down(tester.getCenter(find.byKey(innerKey)));
     await tester.pump(const Duration(milliseconds: 200));
     expect(material, paintsExactlyCountTimes(#drawCircle, 1));
+  });
+
+  testWidgets('disabled and hovered inkwell responds to mouse-exit', (WidgetTester tester) async {
+    int onHoverCount = 0;
+    late bool hover;
+
+    Widget buildFrame({ required bool enabled }) {
+      return Material(
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: 100,
+              height: 100,
+              child: InkWell(
+                onTap: enabled ? () { } : null,
+                onHover: (bool value) {
+                  onHoverCount += 1;
+                  hover = value;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildFrame(enabled: true));
+    final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer();
+    addTearDown(gesture.removePointer);
+
+    await gesture.moveTo(tester.getCenter(find.byType(InkWell)));
+    await tester.pumpAndSettle();
+    expect(onHoverCount, 1);
+    expect(hover, true);
+
+    await tester.pumpWidget(buildFrame(enabled: false));
+    await tester.pumpAndSettle();
+    await gesture.moveTo(Offset.zero);
+    // Even though the InkWell has been disabled, the mouse-exit still
+    // causes onHover(false) to be called.
+    expect(onHoverCount, 2);
+    expect(hover, false);
+
+    await gesture.moveTo(tester.getCenter(find.byType(InkWell)));
+    await tester.pumpAndSettle();
+    // We no longer see hover events because the InkWell is disabled
+    // and it's no longer in the "hovering" state.
+    expect(onHoverCount, 2);
+    expect(hover, false);
+
+    await tester.pumpWidget(buildFrame(enabled: true));
+    await tester.pumpAndSettle();
+    // The InkWell was enabled while it contained the mouse, however
+    // we do not call onHover() because it may call setState().
+    expect(onHoverCount, 2);
+    expect(hover, false);
+
+    await gesture.moveTo(tester.getCenter(find.byType(InkWell)) - const Offset(1, 1));
+    await tester.pumpAndSettle();
+    // Moving the mouse a little within the InkWell doesn't change anything.
+    expect(onHoverCount, 2);
+    expect(hover, false);
+  });
+
+  testWidgets('Changing InkWell.enabled should not trigger TextButton setState()', (WidgetTester tester) async {
+    Widget buildFrame({ required bool enabled }) {
+      return Material(
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: TextButton(
+              onPressed: enabled ? () { } : null,
+              child: const Text('button'),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildFrame(enabled: false));
+
+    final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer();
+    addTearDown(gesture.removePointer);
+    await gesture.moveTo(tester.getCenter(find.byType(TextButton)));
+    await tester.pumpAndSettle();
+
+    // Rebuilding the button with enabled:true causes InkWell.didUpdateWidget()
+    // to be called per the change in its enabled flag. If onHover() was called,
+    // this test would crash.
+    await tester.pumpWidget(buildFrame(enabled: true));
+    await tester.pumpAndSettle();
+
+    // Rebuild again, with enabled:false
+    await gesture.moveBy(const Offset(1, 1));
+    await tester.pumpWidget(buildFrame(enabled: false));
+    await tester.pumpAndSettle();
   });
 }

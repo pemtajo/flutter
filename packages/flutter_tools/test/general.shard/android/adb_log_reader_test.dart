@@ -26,11 +26,13 @@ void main() {
           'adb',
           '-s',
           '1234',
+          'shell',
+          '-x',
           'logcat',
           '-v',
           'time',
           '-T',
-          kLastLogcatTimestamp,
+          '\'$kLastLogcatTimestamp\'',
         ],
       )
     ]);
@@ -49,6 +51,8 @@ void main() {
           'adb',
           '-s',
           '1234',
+          'shell',
+          '-x',
           'logcat',
           '-v',
           'time',
@@ -70,6 +74,8 @@ void main() {
           'adb',
           '-s',
           '1234',
+          'shell',
+          '-x',
           'logcat',
           '-v',
           'time',
@@ -91,6 +97,8 @@ void main() {
           'adb',
           '-s',
           '1234',
+          'shell',
+          '-x',
           'logcat',
           '-v',
           'time',
@@ -115,6 +123,8 @@ void main() {
           'adb',
           '-s',
           '1234',
+          'shell',
+          '-x',
           'logcat',
           '-v',
           'time',
@@ -141,6 +151,8 @@ void main() {
           'adb',
           '-s',
           '1234',
+          'shell',
+          '-x',
           'logcat',
           '-v',
           'time',
@@ -173,7 +185,7 @@ MockAndroidDevice createMockDevice(int sdkLevel) {
   final MockAndroidDevice mockAndroidDevice = MockAndroidDevice();
   when(mockAndroidDevice.apiVersion)
     .thenAnswer((Invocation invocation) async => sdkLevel.toString());
-  when(mockAndroidDevice.lastLogcatTimestamp).thenReturn(kLastLogcatTimestamp);
+  when(mockAndroidDevice.lastLogcatTimestamp()).thenAnswer((Invocation _) async => kLastLogcatTimestamp);
   when(mockAndroidDevice.adbCommandForDevice(any))
     .thenAnswer((Invocation invocation) => <String>[
       'adb', '-s', '1234', ...invocation.positionalArguments.first as List<String>

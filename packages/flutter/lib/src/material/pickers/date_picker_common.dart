@@ -59,8 +59,8 @@ class DateTimeRange {
   ///
   /// [start] and [end] must be non-null.
   const DateTimeRange({
-    @required this.start,
-    @required this.end,
+    required this.start,
+    required this.end,
   }) : assert(start != null),
        assert(end != null);
 
@@ -86,4 +86,7 @@ class DateTimeRange {
 
   @override
   int get hashCode => hashValues(start, end);
+
+  @override
+  String toString() => '$start - $end';
 }

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:file/memory.dart';
@@ -19,6 +18,7 @@ import 'package:process/process.dart';
 import '../src/common.dart';
 import '../src/context.dart';
 import '../src/mocks.dart';
+import '../src/testbed.dart';
 
 const FakeEmulator emulator1 = FakeEmulator('Nexus_5', 'Nexus 5', 'Google');
 const FakeEmulator emulator2 = FakeEmulator('Nexus_5X_API_27_x86', 'Nexus 5X', 'Google');
@@ -57,6 +57,7 @@ void main() {
     when(mockSdk.avdManagerPath).thenReturn('avdmanager');
     when(mockSdk.getAvdManagerPath()).thenReturn('avdmanager');
     when(mockSdk.emulatorPath).thenReturn('emulator');
+    when(mockSdk.adbPath).thenReturn('adb');
   });
 
   group('EmulatorManager', () {
@@ -75,6 +76,29 @@ void main() {
         androidSdk: mockSdk,
         androidWorkflow: AndroidWorkflow(
           androidSdk: mockSdk,
+          featureFlags: TestFeatureFlags(),
+        ),
+      );
+
+      await expectLater(() async => await emulatorManager.getAllAvailableEmulators(),
+        returnsNormally);
+    });
+
+    testUsingContext('getEmulators with no Android SDK', () async {
+      // Test that EmulatorManager.getEmulators() doesn't throw when there's no Android SDK.
+      final EmulatorManager emulatorManager = EmulatorManager(
+        fileSystem: MemoryFileSystem.test(),
+        logger: BufferLogger.test(),
+        processManager: FakeProcessManager.list(<FakeCommand>[
+          const FakeCommand(
+            command: <String>['emulator', '-list-avds'],
+            stdout: 'existing-avd-1',
+          ),
+        ]),
+        androidSdk: null,
+        androidWorkflow: AndroidWorkflow(
+          androidSdk: null,
+          featureFlags: TestFeatureFlags(),
         ),
       );
 
@@ -108,6 +132,7 @@ void main() {
         androidSdk: mockSdk,
         androidWorkflow: AndroidWorkflow(
           androidSdk: mockSdk,
+          featureFlags: TestFeatureFlags(),
         ),
       );
       final CreateEmulatorResult result = await emulatorManager.createEmulator();
@@ -148,6 +173,7 @@ void main() {
         androidSdk: mockSdk,
         androidWorkflow: AndroidWorkflow(
           androidSdk: mockSdk,
+          featureFlags: TestFeatureFlags(),
         ),
       );
       final CreateEmulatorResult result = await emulatorManager.createEmulator();
@@ -183,6 +209,7 @@ void main() {
         androidSdk: mockSdk,
         androidWorkflow: AndroidWorkflow(
           androidSdk: mockSdk,
+          featureFlags: TestFeatureFlags(),
         ),
       );
       final CreateEmulatorResult result = await emulatorManager.createEmulator(name: 'test');
@@ -220,6 +247,7 @@ void main() {
         androidSdk: mockSdk,
         androidWorkflow: AndroidWorkflow(
           androidSdk: mockSdk,
+          featureFlags: TestFeatureFlags(),
         ),
       );
       final CreateEmulatorResult result = await emulatorManager.createEmulator(name: 'existing-avd-1');
@@ -260,6 +288,7 @@ void main() {
         androidSdk: mockSdk,
         androidWorkflow: AndroidWorkflow(
           androidSdk: mockSdk,
+          featureFlags: TestFeatureFlags(),
         ),
       );
       final CreateEmulatorResult result = await emulatorManager.createEmulator();

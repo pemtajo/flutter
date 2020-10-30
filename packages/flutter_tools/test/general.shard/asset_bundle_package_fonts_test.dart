@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:file/file.dart';
@@ -68,7 +67,7 @@ $fontsSection
     String expectedAssetManifest,
   ) async {
     final AssetBundle bundle = AssetBundleFactory.instance.createBundle();
-    await bundle.build(manifestPath: 'pubspec.yaml');
+    await bundle.build(manifestPath: 'pubspec.yaml', packagesPath: '.packages');
 
     for (final String packageName in packages) {
       for (final String packageFont in packageFonts) {
@@ -122,7 +121,7 @@ $fontsSection
       writePubspecFile('p/p/pubspec.yaml', 'test_package');
 
       final AssetBundle bundle = AssetBundleFactory.instance.createBundle();
-      await bundle.build(manifestPath: 'pubspec.yaml');
+      await bundle.build(manifestPath: 'pubspec.yaml', packagesPath: '.packages');
       expect(bundle.entries.length, 3); // LICENSE, AssetManifest, FontManifest
       expect(bundle.entries.containsKey('FontManifest.json'), isTrue);
     }, overrides: <Type, Generator>{

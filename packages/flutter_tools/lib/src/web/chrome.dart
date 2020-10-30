@@ -15,7 +15,6 @@ import '../base/logger.dart';
 import '../base/os.dart';
 import '../base/platform.dart';
 import '../convert.dart';
-import '../globals.dart' as globals;
 
 /// An environment variable used to override the location of Google Chrome.
 const String kChromeEnvironment = 'CHROME_EXECUTABLE';
@@ -35,6 +34,18 @@ const String kWindowsExecutable = r'Google\Chrome\Application\chrome.exe';
 
 /// The expected Edge executable name on Windows.
 const String kWindowsEdgeExecutable = r'Microsoft\Edge\Application\msedge.exe';
+
+/// Used by [ChromiumLauncher] to detect a glibc bug and retry launching the
+/// browser.
+///
+/// Once every few thousands of launches we hit this glibc bug:
+///
+/// https://sourceware.org/bugzilla/show_bug.cgi?id=19329.
+///
+/// When this happens Chrome spits out something like the following then exits with code 127:
+///
+///     Inconsistency detected by ld.so: ../elf/dl-tls.c: 493: _dl_allocate_tls_init: Assertion `listp->slotinfo[cnt].gen <= GL(dl_tls_generation)' failed!
+const String _kGlibcError = 'Inconsistency detected by ld.so';
 
 typedef BrowserFinder = String Function(Platform, FileSystem);
 
@@ -105,15 +116,16 @@ class ChromiumLauncher {
     @required Platform platform,
     @required ProcessManager processManager,
     @required OperatingSystemUtils operatingSystemUtils,
-    @required Logger logger,
     @required BrowserFinder browserFinder,
+    @required Logger logger,
+    @visibleForTesting FileSystemUtils fileSystemUtils,
   }) : _fileSystem = fileSystem,
        _platform = platform,
        _processManager = processManager,
        _operatingSystemUtils = operatingSystemUtils,
-       _logger = logger,
        _browserFinder = browserFinder,
-       _fileSystemUtils = FileSystemUtils(
+       _logger = logger,
+       _fileSystemUtils = fileSystemUtils ?? FileSystemUtils(
          fileSystem: fileSystem,
          platform: platform,
        );
@@ -122,9 +134,9 @@ class ChromiumLauncher {
   final Platform _platform;
   final ProcessManager _processManager;
   final OperatingSystemUtils _operatingSystemUtils;
-  Logger _logger;
   final BrowserFinder _browserFinder;
   final FileSystemUtils _fileSystemUtils;
+  final Logger _logger;
 
   bool get hasChromeInstance => _currentCompleter.isCompleted;
 
@@ -150,25 +162,30 @@ class ChromiumLauncher {
 
   /// Launch a Chromium browser to a particular `host` page.
   ///
-  /// `headless` defaults to false, and controls whether we open a headless or
-  /// a `headfull` browser.
+  /// [headless] defaults to false, and controls whether we open a headless or
+  /// a "headfull" browser.
   ///
-  /// `debugPort` is Chrome's debugging protocol port. If null, a random free
+  /// [debugPort] is Chrome's debugging protocol port. If null, a random free
   /// port is picked automatically.
   ///
-  /// `skipCheck` does not attempt to make a devtools connection before returning.
+  /// [skipCheck] does not attempt to make a devtools connection before returning.
   Future<Chromium> launch(String url, {
     bool headless = false,
     int debugPort,
     bool skipCheck = false,
     Directory cacheDir,
   }) async {
-    _logger ??= globals.logger;
     if (_currentCompleter.isCompleted) {
       throwToolExit('Only one instance of chrome can be started.');
     }
 
     final String chromeExecutable = _browserFinder(_platform, _fileSystem);
+
+    if (_logger.isVerbose) {
+      final ProcessResult versionResult = await _processManager.run(<String>[chromeExecutable, '--version']);
+      _logger.printTrace('Using ${versionResult.stdout}');
+    }
+
     final Directory userDataDir = _fileSystem.systemTempDirectory
       .createTempSync('flutter_tools_chrome_device.');
 
@@ -205,7 +222,7 @@ class ChromiumLauncher {
       url,
     ];
 
-    final Process process = await _processManager.start(args);
+    final Process process = await _spawnChromiumProcess(args);
 
     // When the process exits, copy the user settings back to the provided data-dir.
     if (cacheDir != null) {
@@ -213,34 +230,70 @@ class ChromiumLauncher {
         _cacheUserSessionInformation(userDataDir, cacheDir);
       }));
     }
-
-    process.stdout
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .listen((String line) {
-        _logger.printTrace('[CHROME]: $line');
-      });
-
-    // Wait until the DevTools are listening before trying to connect.
-    await process.stderr
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .map((String line) {
-        _logger.printTrace('[CHROME]:$line');
-        return line;
-      })
-      .firstWhere((String line) => line.startsWith('DevTools listening'), orElse: () {
-        return 'Failed to spawn stderr';
-      });
-    final Uri remoteDebuggerUri = await _getRemoteDebuggerUrl(Uri.parse('http://localhost:$port'));
     return _connect(Chromium._(
       port,
       ChromeConnection('localhost', port),
       url: url,
       process: process,
-      remoteDebuggerUri: remoteDebuggerUri,
       chromiumLauncher: this,
     ), skipCheck);
+  }
+
+  Future<Process> _spawnChromiumProcess(List<String> args) async {
+    // Keep attempting to launch the browser until one of:
+    // - Chrome launched successfully, in which case we just return from the loop.
+    // - The tool detected an unretriable Chrome error, in which case we throw ToolExit.
+    while (true) {
+      final Process process = await _processManager.start(args);
+
+      process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((String line) {
+          _logger.printTrace('[CHROME]: $line');
+        });
+
+      // Wait until the DevTools are listening before trying to connect. This is
+      // only required for flutter_test --platform=chrome and not flutter run.
+      bool hitGlibcBug = false;
+      await process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .map((String line) {
+          _logger.printTrace('[CHROME]:$line');
+          if (line.contains(_kGlibcError)) {
+            hitGlibcBug = true;
+          }
+          return line;
+        })
+        .firstWhere((String line) => line.startsWith('DevTools listening'), orElse: () {
+          if (hitGlibcBug) {
+            _logger.printTrace(
+              'Encountered glibc bug https://sourceware.org/bugzilla/show_bug.cgi?id=19329. '
+              'Will try launching browser again.',
+            );
+            return null;
+          }
+          _logger.printTrace('Failed to launch browser. Command used to launch it: ${args.join(' ')}');
+          throw ToolExit(
+            'Failed to launch browser. Make sure you are using an up-to-date '
+            'Chrome or Edge. Otherwise, consider using -d web-server instead '
+            'and filing an issue at https://github.com/flutter/flutter/issues.',
+          );
+        });
+
+      if (!hitGlibcBug) {
+        return process;
+      }
+
+      // A precaution that avoids accumulating browser processes, in case the
+      // glibc bug doesn't cause the browser to quit and we keep looping and
+      // launching more processes.
+      unawaited(process.exitCode.timeout(const Duration(seconds: 1), onTimeout: () {
+        process.kill();
+        return null;
+      }));
+    }
   }
 
   // This is a JSON file which contains configuration from the browser session,
@@ -271,7 +324,13 @@ class ChromiumLauncher {
 
     if (sourceLocalStorageDir.existsSync()) {
       targetLocalStorageDir.createSync(recursive: true);
-      _fileSystemUtils.copyDirectorySync(sourceLocalStorageDir, targetLocalStorageDir);
+      try {
+        _fileSystemUtils.copyDirectorySync(sourceLocalStorageDir, targetLocalStorageDir);
+      } on FileSystemException catch (err) {
+        // This is a best-effort update. Display the message in case the failure is relevant.
+        // one possible example is a file lock due to multiple running chrome instances.
+        _logger.printError('Failed to save Chrome preferences: $err');
+      }
     }
   }
 
@@ -311,28 +370,6 @@ class ChromiumLauncher {
   }
 
   Future<Chromium> get connectedInstance => _currentCompleter.future;
-
-  /// Returns the full URL of the Chrome remote debugger for the main page.
-  ///
-  /// This takes the [base] remote debugger URL (which points to a browser-wide
-  /// page) and uses its JSON API to find the resolved URL for debugging the host
-  /// page.
-  Future<Uri> _getRemoteDebuggerUrl(Uri base) async {
-    try {
-      final HttpClient client = HttpClient();
-      final HttpClientRequest request = await client.getUrl(base.resolve('/json/list'));
-      final HttpClientResponse response = await request.close();
-      final List<dynamic> jsonObject = await json.fuse(utf8).decoder.bind(response).single as List<dynamic>;
-      if (jsonObject == null || jsonObject.isEmpty) {
-        return base;
-      }
-      return base.resolve(jsonObject.first['devtoolsFrontendUrl'] as String);
-    } on Exception {
-      // If we fail to talk to the remote debugger protocol, give up and return
-      // the raw URL rather than crashing.
-      return base;
-    }
-  }
 }
 
 /// A class for managing an instance of a Chromium browser.
@@ -342,7 +379,6 @@ class Chromium {
     this.chromeConnection, {
     this.url,
     Process process,
-    this.remoteDebuggerUri,
     @required ChromiumLauncher chromiumLauncher,
   })  : _process = process,
         _chromiumLauncher = chromiumLauncher;
@@ -351,7 +387,6 @@ class Chromium {
   final int debugPort;
   final Process _process;
   final ChromeConnection chromeConnection;
-  final Uri remoteDebuggerUri;
   final ChromiumLauncher _chromiumLauncher;
 
   Future<int> get onExit => _process.exitCode;

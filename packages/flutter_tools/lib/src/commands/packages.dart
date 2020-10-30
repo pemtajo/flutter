@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
 import '../base/common.dart';
 import '../base/os.dart';
+import '../build_info.dart';
+import '../build_system/build_system.dart';
 import '../cache.dart';
+import '../dart/generate_synthetic_packages.dart';
 import '../dart/pub.dart';
 import '../globals.dart' as globals;
 import '../project.dart';
@@ -89,14 +90,34 @@ class PackagesGetCommand extends FlutterCommand {
     return usageValues;
   }
 
-  Future<void> _runPubGet(String directory) async {
+  Future<void> _runPubGet(String directory, FlutterProject flutterProject) async {
+    if (flutterProject.manifest.generateSyntheticPackage) {
+      final Environment environment = Environment(
+        artifacts: globals.artifacts,
+        logger: globals.logger,
+        cacheDir: globals.cache.getRoot(),
+        engineVersion: globals.flutterVersion.engineRevision,
+        fileSystem: globals.fs,
+        flutterRootDir: globals.fs.directory(Cache.flutterRoot),
+        outputDir: globals.fs.directory(getBuildDirectory()),
+        processManager: globals.processManager,
+        projectDir: flutterProject.directory,
+      );
+
+      await generateLocalizationsSyntheticPackage(
+        environment: environment,
+        buildSystem: globals.buildSystem,
+      );
+    }
+
     final Stopwatch pubGetTimer = Stopwatch()..start();
     try {
-      await pub.get(context: PubContext.pubGet,
+      await pub.get(
+        context: PubContext.pubGet,
         directory: directory,
         upgrade: upgrade ,
         offline: boolArg('offline'),
-        checkLastModified: false,
+        generateSyntheticPackage: flutterProject.manifest.generateSyntheticPackage,
       );
       pubGetTimer.stop();
       globals.flutterUsage.sendTiming('pub', 'get', pubGetTimer.elapsed, label: 'success');
@@ -122,16 +143,16 @@ class PackagesGetCommand extends FlutterCommand {
        '${ workingDirectory ?? "current working directory" }.'
       );
     }
-
-    await _runPubGet(target);
     final FlutterProject rootProject = FlutterProject.fromPath(target);
-    await rootProject.ensureReadyForPlatformSpecificTooling(checkProjects: true);
+
+    await _runPubGet(target, rootProject);
+    await rootProject.regeneratePlatformSpecificTooling();
 
     // Get/upgrade packages in example app as well
     if (rootProject.hasExampleApp) {
       final FlutterProject exampleProject = rootProject.example;
-      await _runPubGet(exampleProject.directory.path);
-      await exampleProject.ensureReadyForPlatformSpecificTooling(checkProjects: true);
+      await _runPubGet(exampleProject.directory.path, exampleProject);
+      await exampleProject.regeneratePlatformSpecificTooling();
     }
 
     return FlutterCommandResult.success();
@@ -163,7 +184,6 @@ class PackagesTestCommand extends FlutterCommand {
 
   @override
   Future<FlutterCommandResult> runCommand() async {
-    Cache.releaseLockEarly();
     await pub.batch(<String>['run', 'test', ...argResults.rest], context: PubContext.runTest, retry: false);
     return FlutterCommandResult.success();
   }
@@ -204,7 +224,6 @@ class PackagesPublishCommand extends FlutterCommand {
       if (boolArg('dry-run')) '--dry-run',
       if (boolArg('force')) '--force',
     ];
-    Cache.releaseLockEarly();
     await pub.interactively(<String>['publish', ...args], stdio: globals.stdio);
     return FlutterCommandResult.success();
   }
@@ -235,7 +254,6 @@ class PackagesForwardCommand extends FlutterCommand {
 
   @override
   Future<FlutterCommandResult> runCommand() async {
-    Cache.releaseLockEarly();
     await pub.interactively(<String>[_commandName, ...argResults.rest], stdio: globals.stdio);
     return FlutterCommandResult.success();
   }
@@ -263,7 +281,6 @@ class PackagesPassthroughCommand extends FlutterCommand {
 
   @override
   Future<FlutterCommandResult> runCommand() async {
-    Cache.releaseLockEarly();
     await pub.interactively(argResults.rest, stdio: globals.stdio);
     return FlutterCommandResult.success();
   }

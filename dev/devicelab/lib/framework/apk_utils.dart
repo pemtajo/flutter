@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as path;
-import 'package:flutter_devicelab/framework/framework.dart';
-import 'package:flutter_devicelab/framework/utils.dart';
+
+import 'task_result.dart';
+import 'utils.dart';
+
+final String platformLineSep = Platform.isWindows ? '\r\n' : '\n';
 
 final List<String> flutterAssets = <String>[
   'assets/flutter_assets/AssetManifest.json',
   'assets/flutter_assets/NOTICES',
-  'assets/flutter_assets/fonts/MaterialIcons-Regular.ttf',
+  'assets/flutter_assets/fonts/MaterialIcons-Regular.otf',
   'assets/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf',
 ];
 
@@ -105,7 +107,7 @@ String get _androidHome {
   final String androidHome = Platform.environment['ANDROID_HOME'] ??
       Platform.environment['ANDROID_SDK_ROOT'];
   if (androidHome == null || androidHome.isEmpty) {
-    throw Exception('Unset env flag: `ANDROID_HOME` or `ANDROID_SDK_ROOT`.');
+    throw Exception('Environment variable `ANDROID_SDK_ROOT` is not set.');
   }
   return androidHome;
 }
@@ -117,9 +119,23 @@ Future<String> _evalApkAnalyzer(
   String workingDirectory,
 }) async {
   final String javaHome = await findJavaHome();
+
+   final String apkAnalyzer = path
+     .join(_androidHome, 'cmdline-tools', 'latest', 'bin', Platform.isWindows ? 'apkanalyzer.bat' : 'apkanalyzer');
+   if (canRun(apkAnalyzer)) {
+     return eval(
+       apkAnalyzer,
+       args,
+       printStdout: printStdout,
+       workingDirectory: workingDirectory,
+       environment: <String, String>{
+         'JAVA_HOME': javaHome,
+       },
+     );
+   }
+
   final String javaBinary = path.join(javaHome, 'bin', 'java');
   assert(canRun(javaBinary));
-
   final String androidTools = path.join(_androidHome, 'tools');
   final String libs = path.join(androidTools, 'lib');
   assert(Directory(libs).existsSync());
@@ -160,7 +176,6 @@ class ApkExtractor {
         'packages',
         apkFile.path,
       ],
-      printStdout: false,
     );
     _classes = Set<String>.from(
       packages
@@ -269,8 +284,8 @@ subprojects {
     final File pubspec = File(path.join(rootPath, 'pubspec.yaml'));
     String content = await pubspec.readAsString();
     content = content.replaceFirst(
-      '\ndependencies:\n',
-      '\ndependencies:\n  $plugin:\n',
+      '${platformLineSep}dependencies:$platformLineSep',
+      '${platformLineSep}dependencies:$platformLineSep  $plugin:$platformLineSep',
     );
     await pubspec.writeAsString(content, flush: true);
   }
@@ -317,7 +332,7 @@ android {
       path.join(parent.path, 'hello', 'pubspec.yaml')
     );
     final String contents = pubspec.readAsStringSync();
-    final String newContents = contents.replaceFirst('# The following section is specific to Flutter.\nflutter:\n', '''
+    final String newContents = contents.replaceFirst('# The following section is specific to Flutter.${platformLineSep}flutter:$platformLineSep', '''
 flutter:
   assets:
     - lib/gallery/example_code.dart
@@ -351,7 +366,7 @@ class FlutterPluginProject {
 
   static Future<FlutterPluginProject> create(Directory directory, String name) async {
     await inDirectory(directory, () async {
-      await flutter('create', options: <String>['--template=plugin', name]);
+      await flutter('create', options: <String>['--template=plugin', '--platforms=ios,android', name]);
     });
     return FlutterPluginProject(directory, name);
   }
@@ -364,10 +379,6 @@ class FlutterPluginProject {
   String get releaseArmApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'flutter-apk','app-armeabi-v7a-release.apk');
   String get releaseArm64ApkPath => path.join(examplePath, 'build', 'app', 'outputs', 'flutter-apk', 'app-arm64-v8a-release.apk');
   String get releaseBundlePath => path.join(examplePath, 'build', 'app', 'outputs', 'bundle', 'release', 'app.aab');
-
-  Future<void> runGradleTask(String task, {List<String> options}) async {
-    return _runGradleTask(workingDirectory: exampleAndroidPath, task: task, options: options);
-  }
 }
 
 class FlutterModuleProject {

@@ -16,7 +16,7 @@ void main() {
   final GlobalKey widgetKey = GlobalKey();
   Future<BuildContext> setupWidget(WidgetTester tester) async {
     await tester.pumpWidget(Container(key: widgetKey));
-    return widgetKey.currentContext;
+    return widgetKey.currentContext!;
   }
 
   group(FocusNode, () {
@@ -852,12 +852,12 @@ void main() {
     testWidgets('Key handling bubbles up and terminates when handled.', (WidgetTester tester) async {
       final Set<FocusNode> receivedAnEvent = <FocusNode>{};
       final Set<FocusNode> shouldHandle = <FocusNode>{};
-      bool handleEvent(FocusNode node, RawKeyEvent event) {
+      KeyEventResult handleEvent(FocusNode node, RawKeyEvent event) {
         if (shouldHandle.contains(node)) {
           receivedAnEvent.add(node);
-          return true;
+          return KeyEventResult.handled;
         }
-        return false;
+        return KeyEventResult.ignored;
       }
 
       Future<void> sendEvent() async {
@@ -929,7 +929,7 @@ void main() {
     }, variant: TargetPlatformVariant.all());
     testWidgets('Mouse events change initial focus highlight mode on mobile.', (WidgetTester tester) async {
       expect(FocusManager.instance.highlightMode, equals(FocusHighlightMode.touch));
-      RendererBinding.instance.initMouseTracker(); // Clear out the mouse state.
+      RendererBinding.instance!.initMouseTracker(); // Clear out the mouse state.
       final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 0);
       addTearDown(gesture.removePointer);
       await gesture.moveTo(Offset.zero);
@@ -937,7 +937,7 @@ void main() {
     }, variant: TargetPlatformVariant.mobile());
     testWidgets('Mouse events change initial focus highlight mode on desktop.', (WidgetTester tester) async {
       expect(FocusManager.instance.highlightMode, equals(FocusHighlightMode.traditional));
-      RendererBinding.instance.initMouseTracker(); // Clear out the mouse state.
+      RendererBinding.instance!.initMouseTracker(); // Clear out the mouse state.
       final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse, pointer: 0);
       addTearDown(gesture.removePointer);
       await gesture.moveTo(Offset.zero);
@@ -950,7 +950,7 @@ void main() {
     testWidgets('Events change focus highlight mode.', (WidgetTester tester) async {
       await setupWidget(tester);
       int callCount = 0;
-      FocusHighlightMode lastMode;
+      FocusHighlightMode? lastMode;
       void handleModeChange(FocusHighlightMode mode) {
         lastMode = mode;
         callCount++;

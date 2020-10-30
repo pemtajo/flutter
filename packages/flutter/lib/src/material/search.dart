@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -45,19 +43,22 @@ import 'theme.dart';
 /// the [AppBar.leading] position e.g. from the hamburger menu to the back arrow
 /// used to exit the search page.
 ///
+/// ## Handling emojis and other complex characters
+/// {@macro flutter.widgets.editableText.complexCharacters}
+///
 /// See also:
 ///
 ///  * [SearchDelegate] to define the content of the search page.
-Future<T> showSearch<T>({
-  @required BuildContext context,
-  @required SearchDelegate<T> delegate,
-  String query = '',
+Future<T?> showSearch<T>({
+  required BuildContext context,
+  required SearchDelegate<T> delegate,
+  String? query = '',
 }) {
   assert(delegate != null);
   assert(context != null);
   delegate.query = query ?? delegate.query;
   delegate._currentBody = _SearchBody.suggestions;
-  return Navigator.of(context).push(_SearchPageRoute<T>(
+  return Navigator.of(context)!.push(_SearchPageRoute<T>(
     delegate: delegate,
   ));
 }
@@ -66,8 +67,8 @@ Future<T> showSearch<T>({
 ///
 /// The search page always shows an [AppBar] at the top where users can
 /// enter their search queries. The buttons shown before and after the search
-/// query text field can be customized via [SearchDelegate.leading] and
-/// [SearchDelegate.actions].
+/// query text field can be customized via [SearchDelegate.buildLeading] and
+/// [SearchDelegate.buildActions].
 ///
 /// The body below the [AppBar] can either show suggested queries (returned by
 /// [SearchDelegate.buildSuggestions]) or - once the user submits a search  - the
@@ -87,6 +88,9 @@ Future<T> showSearch<T>({
 /// A given [SearchDelegate] can only be associated with one active [showSearch]
 /// call. Call [SearchDelegate.close] before re-using the same delegate instance
 /// for another [showSearch] call.
+///
+/// ## Handling emojis and other complex characters
+/// {@macro flutter.widgets.editableText.complexCharacters}
 abstract class SearchDelegate<T> {
 
   /// Constructor to be called by subclasses which may specify [searchFieldLabel], [keyboardType] and/or
@@ -173,7 +177,7 @@ abstract class SearchDelegate<T> {
   /// clear the query and show the suggestions again (via [showSuggestions]) if
   /// the results are currently shown.
   ///
-  /// Returns null if no widget should be shown
+  /// Returns null if no widget should be shown.
   ///
   /// See also:
   ///
@@ -192,10 +196,12 @@ abstract class SearchDelegate<T> {
   ///  * [AppBar.brightness], which is set to [ThemeData.primaryColorBrightness].
   ThemeData appBarTheme(BuildContext context) {
     assert(context != null);
-    final ThemeData theme = Theme.of(context);
+    final ThemeData theme = Theme.of(context)!;
     assert(theme != null);
     return theme.copyWith(
-      primaryColor: Colors.white,
+      primaryColor: theme.brightness == Brightness.dark
+          ? theme.primaryColor
+          : Colors.white,
       primaryIconTheme: theme.primaryIconTheme.copyWith(color: Colors.grey),
       primaryColorBrightness: Brightness.light,
       primaryTextTheme: theme.textTheme,
@@ -244,7 +250,7 @@ abstract class SearchDelegate<T> {
   ///  * [showResults] to show the search results.
   void showSuggestions(BuildContext context) {
     assert(_focusNode != null, '_focusNode must be set by route before showSuggestions is called.');
-    _focusNode.requestFocus();
+    _focusNode!.requestFocus();
     _currentBody = _SearchBody.suggestions;
   }
 
@@ -255,25 +261,27 @@ abstract class SearchDelegate<T> {
   void close(BuildContext context, T result) {
     _currentBody = null;
     _focusNode?.unfocus();
-    Navigator.of(context)
+    Navigator.of(context)!
       ..popUntil((Route<dynamic> route) => route == _route)
       ..pop(result);
   }
 
   /// The hint text that is shown in the search field when it is empty.
   ///
-  /// If this value is set to null, the value of MaterialLocalizations.of(context).searchFieldLabel will be used instead.
-  final String searchFieldLabel;
+  /// If this value is set to null, the value of
+  /// `MaterialLocalizations.of(context).searchFieldLabel` will be used instead.
+  final String? searchFieldLabel;
 
   /// The style of the [searchFieldLabel].
   ///
-  /// If this value is set to null, the value of the ambient [Theme]'s [ThemeData.inputDecorationTheme.hintStyle] will be used instead.
-  final TextStyle searchFieldStyle;
+  /// If this value is set to null, the value of the ambient [Theme]'s
+  /// [InputDecorationTheme.hintStyle] will be used instead.
+  final TextStyle? searchFieldStyle;
 
   /// The type of action button to use for the keyboard.
   ///
   /// Defaults to the default value specified in [TextField].
-  final TextInputType keyboardType;
+  final TextInputType? keyboardType;
 
   /// The text input action configuring the soft keyboard to a particular action
   /// button.
@@ -291,20 +299,20 @@ abstract class SearchDelegate<T> {
 
   // The focus node to use for manipulating focus on the search page. This is
   // managed, owned, and set by the _SearchPageRoute using this delegate.
-  FocusNode _focusNode;
+  FocusNode? _focusNode;
 
   final TextEditingController _queryTextController = TextEditingController();
 
   final ProxyAnimation _proxyAnimation = ProxyAnimation(kAlwaysDismissedAnimation);
 
-  final ValueNotifier<_SearchBody> _currentBodyNotifier = ValueNotifier<_SearchBody>(null);
+  final ValueNotifier<_SearchBody?> _currentBodyNotifier = ValueNotifier<_SearchBody?>(null);
 
-  _SearchBody get _currentBody => _currentBodyNotifier.value;
-  set _currentBody(_SearchBody value) {
+  _SearchBody? get _currentBody => _currentBodyNotifier.value;
+  set _currentBody(_SearchBody? value) {
     _currentBodyNotifier.value = value;
   }
 
-  _SearchPageRoute<T> _route;
+  _SearchPageRoute<T>? _route;
 }
 
 /// Describes the body that is currently shown under the [AppBar] in the
@@ -323,13 +331,13 @@ enum _SearchBody {
 
 class _SearchPageRoute<T> extends PageRoute<T> {
   _SearchPageRoute({
-    @required this.delegate,
+    required this.delegate,
   }) : assert(delegate != null) {
     assert(
       delegate._route == null,
       'The ${delegate.runtimeType} instance is currently used by another active '
       'search. Please close that search by calling close() on the SearchDelegate '
-      'before openening another search with the same delegate instance.',
+      'before opening another search with the same delegate instance.',
     );
     delegate._route = this;
   }
@@ -337,10 +345,10 @@ class _SearchPageRoute<T> extends PageRoute<T> {
   final SearchDelegate<T> delegate;
 
   @override
-  Color get barrierColor => null;
+  Color? get barrierColor => null;
 
   @override
-  String get barrierLabel => null;
+  String? get barrierLabel => null;
 
   @override
   Duration get transitionDuration => const Duration(milliseconds: 300);
@@ -381,7 +389,7 @@ class _SearchPageRoute<T> extends PageRoute<T> {
   }
 
   @override
-  void didComplete(T result) {
+  void didComplete(T? result) {
     super.didComplete(result);
     assert(delegate._route == this);
     delegate._route = null;
@@ -391,8 +399,8 @@ class _SearchPageRoute<T> extends PageRoute<T> {
 
 class _SearchPage<T> extends StatefulWidget {
   const _SearchPage({
-    this.delegate,
-    this.animation,
+    required this.delegate,
+    required this.animation,
   });
 
   final SearchDelegate<T> delegate;
@@ -474,9 +482,9 @@ class _SearchPageState<T> extends State<_SearchPage<T>> {
     final ThemeData theme = widget.delegate.appBarTheme(context);
     final String searchFieldLabel = widget.delegate.searchFieldLabel
       ?? MaterialLocalizations.of(context).searchFieldLabel;
-    final TextStyle searchFieldStyle = widget.delegate.searchFieldStyle
+    final TextStyle? searchFieldStyle = widget.delegate.searchFieldStyle
       ?? theme.inputDecorationTheme.hintStyle;
-    Widget body;
+    Widget? body;
     switch(widget.delegate._currentBody) {
       case _SearchBody.suggestions:
         body = KeyedSubtree(
@@ -490,8 +498,10 @@ class _SearchPageState<T> extends State<_SearchPage<T>> {
           child: widget.delegate.buildResults(context),
         );
         break;
+      case null:
+        break;
     }
-    String routeName;
+    final String routeName;
     switch (theme.platform) {
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:

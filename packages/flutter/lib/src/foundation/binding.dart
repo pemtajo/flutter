@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
 import 'dart:convert' show json;
 import 'dart:developer' as developer;
 import 'dart:io' show exit;
-import 'dart:ui' as ui show saveCompilationTrace, Window, window;
+import 'dart:ui' as ui show  Window, window, Brightness;
 // Before adding any more dart:ui imports, please read the README.
 
 import 'package:meta/meta.dart';
@@ -141,14 +140,6 @@ abstract class BindingBase {
         name: 'exit',
         callback: _exitApplication,
       );
-      registerServiceExtension(
-        name: 'saveCompilationTrace',
-        callback: (Map<String, String> parameters) async {
-          return <String, dynamic>{
-            'value': ui.saveCompilationTrace(),
-          };
-        },
-      );
     }
 
     assert(() {
@@ -190,6 +181,33 @@ abstract class BindingBase {
             'value': defaultTargetPlatform
                      .toString()
                      .substring('$TargetPlatform.'.length),
+          };
+        },
+      );
+
+      const String brightnessOverrideExtensionName = 'brightnessOverride';
+      registerServiceExtension(
+        name: brightnessOverrideExtensionName,
+        callback: (Map<String, String> parameters) async {
+          if (parameters.containsKey('value')) {
+            switch (parameters['value']) {
+              case 'Brightness.light':
+                debugBrightnessOverride = ui.Brightness.light;
+                break;
+              case 'Brightness.dark':
+                debugBrightnessOverride = ui.Brightness.dark;
+                break;
+              default:
+                debugBrightnessOverride = null;
+            }
+            _postExtensionStateChangedEvent(
+              brightnessOverrideExtensionName,
+              (debugBrightnessOverride ?? window.platformBrightness).toString(),
+            );
+            await reassembleApplication();
+          }
+          return <String, dynamic>{
+            'value': (debugBrightnessOverride ?? window.platformBrightness).toString(),
           };
         },
       );
@@ -295,8 +313,8 @@ abstract class BindingBase {
   /// {@macro flutter.foundation.bindingBase.registerServiceExtension}
   @protected
   void registerSignalServiceExtension({
-    @required String name,
-    @required AsyncCallback callback,
+    required String name,
+    required AsyncCallback callback,
   }) {
     assert(name != null);
     assert(callback != null);
@@ -325,9 +343,9 @@ abstract class BindingBase {
   /// {@macro flutter.foundation.bindingBase.registerServiceExtension}
   @protected
   void registerBoolServiceExtension({
-    @required String name,
-    @required AsyncValueGetter<bool> getter,
-    @required AsyncValueSetter<bool> setter,
+    required String name,
+    required AsyncValueGetter<bool> getter,
+    required AsyncValueSetter<bool> setter,
   }) {
     assert(name != null);
     assert(getter != null);
@@ -359,9 +377,9 @@ abstract class BindingBase {
   /// {@macro flutter.foundation.bindingBase.registerServiceExtension}
   @protected
   void registerNumericServiceExtension({
-    @required String name,
-    @required AsyncValueGetter<double> getter,
-    @required AsyncValueSetter<double> setter,
+    required String name,
+    required AsyncValueGetter<double> getter,
+    required AsyncValueSetter<double> setter,
   }) {
     assert(name != null);
     assert(getter != null);
@@ -370,7 +388,7 @@ abstract class BindingBase {
       name: name,
       callback: (Map<String, String> parameters) async {
         if (parameters.containsKey(name)) {
-          await setter(double.parse(parameters[name]));
+          await setter(double.parse(parameters[name]!));
           _postExtensionStateChangedEvent(name, (await getter()).toString());
         }
         return <String, dynamic>{name: (await getter()).toString()};
@@ -421,9 +439,9 @@ abstract class BindingBase {
   /// {@macro flutter.foundation.bindingBase.registerServiceExtension}
   @protected
   void registerStringServiceExtension({
-    @required String name,
-    @required AsyncValueGetter<String> getter,
-    @required AsyncValueSetter<String> setter,
+    required String name,
+    required AsyncValueGetter<String> getter,
+    required AsyncValueSetter<String> setter,
   }) {
     assert(name != null);
     assert(getter != null);
@@ -432,7 +450,7 @@ abstract class BindingBase {
       name: name,
       callback: (Map<String, String> parameters) async {
         if (parameters.containsKey('value')) {
-          await setter(parameters['value']);
+          await setter(parameters['value']!);
           _postExtensionStateChangedEvent(name, await getter());
         }
         return <String, dynamic>{'value': await getter()};
@@ -493,8 +511,8 @@ abstract class BindingBase {
   /// {@endtemplate}
   @protected
   void registerServiceExtension({
-    @required String name,
-    @required ServiceExtensionCallback callback,
+    required String name,
+    required ServiceExtensionCallback callback,
   }) {
     assert(name != null);
     assert(callback != null);
@@ -521,9 +539,9 @@ abstract class BindingBase {
         return Future<void>.delayed(Duration.zero);
       });
 
-      dynamic caughtException;
-      StackTrace caughtStack;
-      Map<String, dynamic> result;
+      Object? caughtException;
+      StackTrace? caughtStack;
+      late Map<String, dynamic> result;
       try {
         result = await callback(parameters);
       } catch (exception, stack) {
